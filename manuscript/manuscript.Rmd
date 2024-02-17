@@ -1,5 +1,5 @@
 ---
-title: "Deep Learning Models for Limnological Time Series Forecasting"
+title: "A Comparison of Machine Learning Models for Limnological Time Series Forecasting"
 authors:
   - name: Marcus Lapeyrolerie
     department: Department of Environmental Science, Policy, and Management
@@ -48,21 +48,31 @@ editor_options:
 
 # Introduction
 
-The ability to accurately forecast water temperature, dissolved oxygen and chlorophyll concentration in freshwater systems is significant to natural resource management. Since water temperature, dissolved oxygen and chlorophyll concentration effect many biological and physical processes in freshwater ecosystems \cite{oullet-proulx, Stajkowski, Chen}, preemptive forecasts of these variables could allow managers to circumvent scenarios with far-reaching negative impacts. Yet, forecasting these variables is challenging because they are influenced by many processes that are hard to predict and characterize. Limnologists have historically used empirical and process-based models to forecast water quality metrics, but in recent years, researchers have shown that machine learning can outperform these traditionally used methods \cite{Hanson, others}. A shortcoming of these studies which support machine learning is that they tend to focus on a handful of sites that are not necessarily representative of sites in different geographic regions. This paper has the primary aim of making a comprehensive comparison of state-of-the-art machine learning methods by examining how these models perform at 34 different sites across North America at different times of the year.
+The ability to accurately forecast water temperature, dissolved oxygen and chlorophyll concentration in freshwater systems is important to natural resource management. Since water temperature, dissolved oxygen and chlorophyll concentration effect many biological and physical processes in freshwater ecosystems \cite{oullet-proulx, Stajkowski, Chen}, preemptive forecasts of these variables could allow managers to circumvent scenarios with far-reaching negative impacts. Yet, forecasting these variables is challenging because they are influenced by many processes that are hard to predict and characterize. Limnologists have historically used empirical and process-based models to forecast water quality metrics, but in recent years, researchers have shown that machine learning can outperform these traditionally used methods \cite{Hanson, others}. A shortcoming of these studies in support of machine learning is that they tend to focus on a handful of sites that are not necessarily representative of bodies of water across larger geographic regions. This paper has the primary aim of making a comprehensive comparison of state-of-the-art machine learning methods by examining how these models perform at 34 different sites across North America at different times of the year.
 
-The time series that are used in this study are taken from the National Ecological Observatory Network's Ecological Forecasting Challenge, an open challenge where teams can submit forecasts to the publicly accessible data \cite{Quinn}. A common theme across the challenge is that a historical means (or climatology) model tends to be a top performing model \cite{Dietze, Quinn}. In a model comparison for the phenology challenge, \cite{Dietze} found that the climatology outperformed all but one of the submitted models, and the best performing forecast only marginally outperformed the climatology model. Thus, a primary consideration in this paper is the comparison of the machine learning models to the climatology model. If deep learning models can consistently outperform the climatology model, then deep learning is clearly a promising method class for limonological time series forecasting.
+The time series that are used in this study are taken from the National Ecological Observatory Network's (NEON) Ecological Forecasting Challenge, an open challenge where teams can submit forecasts to data that is collected and made publicly accessible by NEON \cite{Quinn}. A common finding across the challenge is that a historical means model (also referred to as the climatology model) tends to generate top scoring forecasts \cite{Dietze, Quinn}. For instance, in a model comparison that examined the forecasts for the phenology data from the Ecological Forecasting Challenge, \cite{Dietze} found that the climatology model outperformed all except one of the submitted models; and, the best performing model only marginally outperformed the climatology model. Thus, a primary consideration in this paper is the comparing the performance of the machine learning models to the climatology model.
 
-Talk about Darts, and how there have been newly developed deep learning models that offer advantages over the more vanilla ones that are commonly used. The advantage of taking the machine learning approach is that it allows the ability to easily deploy models on systems without having a mechanistic understanding of them. This is especially advantageous in the current era where sensors can be deployed at a much faster rate than we can build accurate water quality models for every existent body of water. Like Sci-kit Learn or Tidy Models, Darts allows users to easily instantiate, fit and predict with these state of the art models without requiring users to create these models from scratch.
+There is a large variety of neural network architectures that are used for time series forecasting. Past applications of machine learning to limnological time series forecasting have used architectures like the long-short-term-memory (LSTM) network which was published in 1997 \cite{lstm}. Over the nearly 30 years since LSTM's were introduced, there have been a plethora of other neural network architectures that have been developped for time series forecasting, many of which were designed to avoid the shortcomings inherent to earlier architectures like LSTM's \cite{some_ml_papers}. This paper will compare 8 machine learning models including LSTM's to more recently developed ML methods for time series forecasting like Temporal Fusion Transformer's and Temporal Convolutional Networks \cite{tft, tcn}.
 
 # Materials and Methods
 
+Talk generally about how forecasts were produced. we looked at 12 different time intervals over the span BLANK. 8 machine learning models, and we compared these against 2 null models, a naive persistence model and a climatology model. For the climatology model, we compared the probabilistic forecasts using the CRPS metric. For the naive persistence model, we compared the point forecast, using the median of the probabilistic forecast generated by the machine learning models.
+
 ## Preprocessing
+
+Talk about how preprocessing was performed using daily mean data whenever possible.
 
 ## Null Models
 
+Talk briefly about how you defined the naive persistence and climatology model.
+
 ## Machine Learning Models
 
+Introduce darts, talk about the range of machine learning models that were included. The models generate probabilistic forecasts, this is because the model attempts to do quantile regression. The model will then sample from the distribution specified by the ML model outputs and this will serve as the forecast.
+
 # Results
+
+Plots. Talk about plots.
 
 
 # Discussion
