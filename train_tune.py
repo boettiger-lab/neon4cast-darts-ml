@@ -86,10 +86,16 @@ if __name__ == "__main__":
     covariates_list.remove(args.target)
     if args.nocovs:
         covariates_list = None
-    
-    data_preprocessor = TimeSeriesPreprocessor(input_csv_name = "targets.csv.gz",
-                                               load_dir_name = "preprocessed_timeseries/")
-    data_preprocessor.load(args.site)
+
+    # Loading data preprocessors for training and validation
+    data_preprocessors = []
+    for suffix in ['train', 'validate']:
+        preprocessor = TimeSeriesPreprocessor(
+            input_csv_name = "targets.csv.gz",
+            load_dir_name = f"preprocessed_{suffix}/",
+        )
+        preprocessor.load(args.site)
+        data_preprocessors.append(preprocessor)
     
     # Handling csv names and directories for the final forecast
     if not os.path.exists(f"forecasts/{args.site}/{args.target}/"):
@@ -103,17 +109,20 @@ if __name__ == "__main__":
     # Instantiating the model
     extras = {"epochs": args.epochs,
               "verbose": args.verbose,}
-    forecaster = BaseForecaster(model=args.model,
-                        target_variable=args.target,
-                        data_preprocessor=data_preprocessor,
-                        covariates_names=covariates_list,
-                        output_csv_name=f"{output_csv_name}.csv",
-                        validation_split_date=args.date,
-                        model_hyperparameters=hyperparams_dict["model_hyperparameters"],
-                        model_likelihood=model_likelihood,
-                        site_id=args.site,
-                        num_trials=args.num_trials,
-                        **extras)
+    forecaster = BaseForecaster(
+        model=args.model,
+        target_variable=args.target,
+        train_preprocessor=preprocessors[0],
+        validate_preprocessor=preprocessors[0],
+        covariates_names=covariates_list,
+        output_csv_name=f"{output_csv_name}.csv",
+        validation_split_date=args.date,
+        model_hyperparameters=hyperparams_dict["model_hyperparameters"],
+        model_likelihood=model_likelihood,
+        site_id=args.site,
+        num_trials=args.num_trials,
+        **extras,
+    )
     
     # 
     if args.tune:
