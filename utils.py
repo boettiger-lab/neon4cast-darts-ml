@@ -22,7 +22,6 @@ from darts.utils.likelihood_models import QuantileRegression
 from darts.dataprocessing.transformers import Scaler
 from darts.metrics import smape
 from datetime import datetime, timedelta
-import ray
 import CRPS.CRPS as forecastscore
 import os
 import optuna
@@ -33,6 +32,29 @@ import numpy as np
 from torchmetrics import SymmetricMeanAbsolutePercentageError
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 import warnings
+import boto3
+from s3_utils import(
+    read_credentials_from_json,
+    upload_df_to_s3,
+    download_df_from_s3,
+    ls_bucket,
+)
+
+try:
+    access_key_id, secret_access_key = read_credentials_from_json('bucket_key.json')
+    
+    s3 = boto3.client(
+        's3', 
+        endpoint_url='https://minio.carlboettiger.info',
+        aws_access_key_id=access_key_id,
+        aws_secret_access_key=secret_access_key,
+    )
+    s3_flag = True
+    print('Using a S3 client with minio.')
+
+except:
+    print('Not using a S3 client with minio.')
+    s3_flag = False
 
 def crps(forecast, observed, observed_is_ts=False):
     """
@@ -202,26 +224,6 @@ class HistoricalForecaster():
             self.forecast_df = None
             self.forecast_ts = None
 
-
-    def get_residuals(self):
-        # This needs to be re-examined!!!
-        residual_list = []
-        # Finding the difference between the doy historical mean and
-        # the observed value
-        for date in self.training_set.time_index:
-            doy = date.dayofyear
-            observed = self.training_set.slice_n_points_after(
-                date, 
-                1
-            ).median().values()[0][0]
-            historical_mean = self.doy_df.loc[doy]["mean"]
-            residual = observed - historical_mean
-            residual_list.append(residual)
-
-        self.residuals = TimeSeries.from_times_and_values(
-            self.training_set.time_index, 
-            residual_list
-        )
         
 def month_doy_range(year, month):
     # Get the first day of the month
@@ -300,8 +302,9 @@ class TimeSeriesPreprocessor():
     def make_stitched_series(self, var):
         """
         Returns a time series where the gaps have been filled in via
-        Gaussian Process Filters
+        Gaussian Process Filters and daily historical data
         """
+        # REXAMINE GP USAGE HERE
         kernel = RBF()
         
         gpf_missing = GaussianProcessFilter(
@@ -321,7 +324,7 @@ class TimeSeriesPreprocessor():
         except:
             return None
     
-        # If there is a gap over 7 indices, use big gap filter
+        # If there is a gap over 4 indices, use big gap filter
         gap_series = self.var_tseries_dict[var].gaps()
         stitched_df = filtered.pd_dataframe(suppress_warnings=True)
         
@@ -332,7 +335,7 @@ class TimeSeriesPreprocessor():
 
         # For these big gaps, I replace with samples centered on historical mean and std
         for index, row in gap_series.iterrows():
-            if row["gap_size"] > 7:
+            if row["gap_size"] > 4:
                 for date in pd.date_range(row["gap_start"], row["gap_end"]):
                     # Finding the mean and std from the doy dictionary
                     # and avoiding leap year errors
@@ -469,8 +472,13 @@ class TimeSeriesPreprocessor():
         # Saving each TimeSeries
         for site in self.sites_dict.keys():
             for variable in self.sites_dict[site]:
-                self.sites_dict[site][variable].pd_dataframe(suppress_warnings=True)\
-                    .to_csv(f"{self.load_dir_name}{site}-{variable}.csv")
+                df = self.sites_dict[site][variable].pd_dataframe(suppress_warnings=True)
+                file_name = f"{self.load_dir_name}{site}-{variable}.csv"
+                # Saving to S3 bucket if flagged
+                if s3_flag:
+                    upload_df_to_s3(file_name, df, s3)
+                else:
+                    df.to_csv(file_name)
 
     def load(self, site):
         # Need to check what are the possible variables that there could be in null, 
@@ -479,13 +487,19 @@ class TimeSeriesPreprocessor():
         variables_present = []
         
         # Need to fill sites_dict and sites_dict_null
-        files = os.listdir(self.load_dir_name)
+        if s3_flag:
+            files = ls_bucket(self.load_dir_name, s3)
+        else:
+            files = os.listdir(self.load_dir_name)
         for file in files:
             if file.startswith(site):
                 # Reading in file name
                 site, variable = file.replace(".csv", "").split("-") 
                 file_path = os.path.join(self.load_dir_name, file)
-                df = pd.read_csv(file_path)
+                if s3_flag:
+                    df = download_df_from_s3(file_path, s3)
+                else:
+                    df = pd.read_csv(file_path)
     
                 # To make a time series, need to isolate time index and values
                 times = pd.to_datetime(df["datetime"])
@@ -565,7 +579,6 @@ class BaseForecaster():
         else:
             self.hyperparams = model_hyperparameters
         self.model_likelihood = model_likelihood
-        # Try to get validation set from targets and not preprocessor
 
         self.training_set, self.covs_train = self._preprocess_data(train_preprocessor)
         self.inputs, self.covariates = self._preprocess_data(validate_preprocessor,
@@ -898,58 +911,17 @@ class BaseForecaster():
             **predict_kws
         )
         for prediction in predictions:
+            # CHANGE THIS TO WORK WITH BUCKET
             prediction = self.scaler.inverse_transform(prediction)
             csv_name = self.output_csv_name + "_" + \
                            prediction.time_index[0].strftime('%Y_%m_%d.csv')
-            prediction.pd_dataframe(suppress_warnings=True).to_csv(csv_name)
+            df = prediction.pd_dataframe(suppress_warnings=True)
+            if s3_flag:
+                upload_df_to_s3(csv_name, df, s3)
+            else:
+                df.to_csv(csv_name)
             
-
-
-    def get_historicals_and_residuals(self):
-        """
-        This function creates a historical forecast along with their residual errors 
-        """
-        # This presumes that the scaler will not have been modified in interim 
-        # from calling `make_forecasts`
-        historical_forecast_kws = {
-            "num_samples": self.num_samples,
-            "forecast_horizon": self.forecast_horizon,
-            "retrain": False,
-            "last_points_only": False,
-        }
-        if self.covariates is not None:
-            training_set, covariates = self.scaler.transform([self.training_set,
-                                                              self.covariates])
-            historical_forecast_kws["past_covariates"] = covariates
-        else:
-            training_set = self.scaler.transform([self.training_set])
-        historical_forecast_kws["series": training_set]
-        
-        covariates, _ = covariates.split_after(training_set.time_index[-1])
-        historical_forecasts = self.model.historical_forecasts(
-                                                    **historical_forecast_kws
-                                                              )
-        historical_forecasts = [self.scaler.inverse_transform(historical_forecast) for
-                                                historical_forecast in historical_forecasts]
-        # Getting the target time series slice for the historical forecast
-        self.historical_ground_truth = self.training_set.slice(
-            historical_forecasts[0].time_index[0], 
-            historical_forecasts[-1].time_index[-1]
-        )
-
-        # Now concatenating the historical forecasts which were returned
-        # as a list above
-        self.historical_forecasts = historical_forecasts[0]
-        for time_series in historical_forecasts[1:]:
-            self.historical_forecasts = self.historical_forecasts.concatenate(
-                time_series, 
-                axis=0, 
-                ignore_time_axis=True
-            )
-
-
-        # Defining residual as difference between the median and ground truth
-        self.residuals = self.historical_ground_truth - self.historical_forecasts.median()
+            
 
     def prepare_hyperparams(self, hyperparams_dict):
         if "add_encoders" in hyperparams_dict.keys():
@@ -968,148 +940,4 @@ class BaseForecaster():
             del hyperparams_dict["lr"]
 
         return hyperparams_dict
-        
-# This needs to be reviewed, not sure what I was doing here
-   #def make_residuals_csv(self):
-   #    
-   #    forecast_df = self.historical_forecasts.pd_dataframe()
-   #    observed_df = self.historical_ground_truth.pd_dataframe()
-   #    residuals_df = self.residuals.pd_dataframe()
-#
-   #    # Creating a folder if it doesn't exist already
-   #    if not os.path.exists(f"{self.model}_residuals/"):
-   #        os.makedirs(f"{self.model}_residuals/")
-   #    # Saving csv's in the **model name**_test directory
-   #    df_dict = {"covariates": cov,
-   #               "forecast": forecast_df,
-   #               "observed": self.historical_ground_truth.pd_dataframe()}
-   #    if self.covariates is not None:
-   #        covariates_df = self.covariates.pd_dataframe()
-   #        df_dict["covariates"] = 
-   #    for variable, df in df_dict.items():
-   #        df.to_csv(f"{self.model}_test/{variable}")
-    
-class ResidualForecaster():
-    def __init__(self,
-                 residuals: Optional[TimeSeries] = None,
-                 output_csv_name: Optional[str] = "residual_forecaster_output.csv",
-                 validation_split_date: Optional[str] = None, #YYYY-MM-DD
-                 tune_model: Optional[bool] = False,
-                 model_hyperparameters: Optional[dict] = None,
-                 forecast_horizon: Optional[int] = 30,
-                 epochs: Optional[int]=1,
-                 num_samples: Optional[int] = 500,
-                 num_trials: Optional[int] = 50,
-                 seed: Optional[int] = 0,
-                 ):
-        self.residuals = residuals
-        self.output_csv_name = output_csv_name
-        self.validation_split_date = validation_split_date
-        self.forecast_horizon = forecast_horizon
-        self.epochs = epochs
-        self.num_samples = num_samples
-        self.num_trials = num_trials
-        self.seed = seed
-        if model_hyperparameters == None:
-            self.hyperparams = {"input_chunk_length": 540,
-                                "lstm_layers": 4,
-                                "add_encoders": {'datetime_attribute': {'future': ['dayofyear']}}
-                                }
-        else:
-            self.hyperparams = model_hyperparameters
-        self._preprocess_data()
- 
-        
-    def _preprocess_data(self):
-        """
-        Divides input time series into training and validation sets
-        """
-        # Getting the date so that we can create the training and test set
-        year = int(self.validation_split_date[:4])
-        month = int(self.validation_split_date[5:7])
-        day = int(self.validation_split_date[8:])
-        split_date = pd.Timestamp(year=year, month=month, day=day)
-        self.training_set, self.validation_set = self.residuals.split_before(split_date)
-
-    
-    def tune(self,
-             input_chunk_length: Optional[list] = [31, 60, 180, 356],
-             hidden_size: Optional[list] = [2, 3, 5],
-             num_attention_heads: Optional[list] = [2, 4, 8, 16],
-             lstm_layers: Optional[list] = [1, 2, 3],
-             dropout: Optional[list] = [0, 0.1, 0.2, 0.3],
-             ):
-        """
-        Sets up Optuna trial to perform hyperparameter tuning
-        """
-        # The objective function will be called in the optuna loop
-        def objective(trial):
-            callback = [PyTorchLightningPruningCallback(trial, monitor="val_loss")]
-        
-            # Selecting the hyperparameters
-            input_chunk_length_ = trial.suggest_categorical("input_chunk_length", 
-                                                               input_chunk_length)
-            hidden_size_ = trial.suggest_categorical("hidden_size", hidden_size)
-            num_attention_heads_ = trial.suggest_categorical("num_attention_heads", num_attention_heads)
-            lstm_layers_ = trial.suggest_categorical("lstm_layers", lstm_layers)
-            dropout_ = trial.suggest_categorical("dropout", dropout)
-
-            tft_model = TFTModel(input_chunk_length=input_chunk_length_,
-                            hidden_size=hidden_size_,
-                            num_attention_heads=num_attention_heads_,
-                            lstm_layers=lstm_layers_,
-                            output_chunk_length=self.forecast_horizon,
-                            likelihood=QuantileRegression([0.05, 0.1, 0.5, 0.9, 0.95]),
-                            add_encoders={'datetime_attribute': {'future': ['dayofyear']}})
-
-            # Normalizing data to 0, 1 scale and fitting the model
-            self.scaler = Scaler()
-            training_set = self.scaler.fit_transform(self.training_set)
-            tft_model.fit(training_set,
-                          epochs=self.epochs, 
-                          verbose=False)
-
-            predictions = tft_model.predict(n=len(self.validation_set[:self.forecast_horizon]),  
-                                            num_samples=self.num_samples)
-            predictions = self.scaler.inverse_transform(predictions)
-            
-            smapes = smape(self.validation_set[:self.forecast_horizon], 
-                           predictions, 
-                           n_jobs=-1, 
-                           verbose=False)
-            
-            smape_val = np.mean(smapes)
-            return smape_val if smape_val != np.nan else float("inf")
-
-
-        study = optuna.create_study(direction="minimize")
-        
-        study.optimize(objective, n_trials=self.num_trials)
-        
-        # I save the best hyperparameters to the object self.hyperparameter so that these
-        # hyperparameters can be easily referend in the future
-        self.hyperparams = study.best_trial.params
-
-    def make_residual_forecasts(self):
-        """
-        This function fits a TCN model to the residual error
-        """
-        # For clarity, I print the hyperparameters. Otherwise, following the standard
-        # model fitting steps in Darts
-        print(self.hyperparams)
-        tft = TFTModel(**self.hyperparams,
-               output_chunk_length=self.forecast_horizon,
-               likelihood=QuantileRegression([0.05, 0.1, 0.5, 0.9, 0.95]),
-               random_state=self.seed)
-        self.scaler = Scaler()
-        training_set = self.scaler.fit_transform(self.training_set)
-        tft.fit(training_set,
-                epochs=self.epochs, 
-                verbose=False)
-
-        predictions = tft.predict(n=self.forecast_horizon,
-                                  num_samples=self.num_samples)
-        self.predictions = self.scaler.inverse_transform(predictions)
-
-        self.predictions.pd_dataframe(suppress_warnings=True).to_csv(self.output_csv_name)
 
