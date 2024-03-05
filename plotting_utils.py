@@ -330,6 +330,7 @@ def score_improvement_bysite(model, targets_df, target_variable, suffix=""):
     # For each site, score CRPS and RMSE individually and add to score_dict
     for site_id in targets_df.site_id.unique():
         site_dict = {}
+        # UPDATE THIS TO BUCKET
         glob_prefix = f'forecasts/{site_id}/{target_variable}/{model}_{suffix}/forecast*'
         csv_list = sorted(glob.glob(glob_prefix))
         for csv in csv_list:
@@ -446,6 +447,7 @@ def plot_forecast(date, targets_df, site_id, target_variable, model_dir, plot_na
     '''
     cmap = mpl.colormaps["tab10"]
     colors = cmap.colors
+    # NEED TO UPDATE FOR BUCKET
     # Loading the forecast csv and creating a time series
     csv_name = f"forecasts/{site_id}/{target_variable}/{model_dir}/forecast_{date}.csv"
     df = pd.read_csv(csv_name)

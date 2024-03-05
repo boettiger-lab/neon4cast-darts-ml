@@ -40,21 +40,88 @@ from s3_utils import(
     ls_bucket,
 )
 
-try:
-    access_key_id, secret_access_key = read_credentials_from_json('bucket_key.json')
+def establish_s3_connection(endpoint='https://minio.carlboettiger.info', json_file='bucket_key_alt.json'):
+    '''
+    This function establishes a connection to a S3 bucket. If the bucket requires a token to 
+    access, then input json_file as an kw argument.
+    '''
+    try:
+        access_key_id, secret_access_key = read_credentials_from_json(json_file)
+    except FileNotFoundError:
+        access_key_id = None
+        secret_access_key = None
     
-    s3 = boto3.client(
-        's3', 
-        endpoint_url='https://minio.carlboettiger.info',
-        aws_access_key_id=access_key_id,
-        aws_secret_access_key=secret_access_key,
-    )
-    s3_flag = True
-    print('Using a S3 client with minio.')
+    try:
+        if access_key_id and secret_access_key:
+            s3 = boto3.client(
+                's3', 
+                endpoint_url=endpoint,
+                aws_access_key_id=access_key_id,
+                aws_secret_access_key=secret_access_key,
+            )
+            print('Using an S3 client with MinIO.')
+        else:
+            s3 = boto3.client(
+                's3',
+                endpoint_url=endpoint,
+            )
+            print('Using an S3 client with MinIO without access keys.')
+    except Exception as e:
+        print(f'Error: {e}')
+        s3 = None
 
-except:
-    print('Not using a S3 client with minio.')
-    s3_flag = False
+    return s3
+
+def handle_nn_architecture(model_name):
+    if model_name == 'RNN':
+        nn_options = [{'hidden_dim': 25, 'n_rnn_layers': 1},
+                      {'hidden_dim': 25, 'n_rnn_layers': 2},
+                      {'hidden_dim': 25, 'n_rnn_layers': 3},
+                      {'hidden_dim': 25, 'n_rnn_layers': 4},
+                      {'hidden_dim': 100, 'n_rnn_layers': 1}]
+    elif model_name == 'TFT':
+        nn_options = [{'hidden_size': 16, 'n_rnn_layers': 1},
+                      {'hidden_size': 16, 'n_rnn_layers': 2},
+                      {'hidden_size': 16, 'n_rnn_layers': 3},
+                      {'hidden_size': 16, 'n_rnn_layers': 4},
+                      {'hidden_size': 64, 'n_rnn_layers': 1}]
+    elif model_name == 'BlockRNN':
+        nn_options = [{'hidden_dim': 25, 'n_rnn_layers': 1},
+                      {'hidden_dim': 25, 'n_rnn_layers': 2},
+                      {'hidden_dim': 25, 'n_rnn_layers': 3},
+                      {'hidden_dim': 25, 'n_rnn_layers': 4},
+                      {'hidden_dim': 100, 'n_rnn_layers': 1}]
+    elif model_name == 'Transformer':
+        nn_options = [{'num_encoder_layers': 1, 
+                       'num_decoder_layers': 1,  
+                       'dim_feedforward': 64},
+                      {'num_encoder_layers': 2, 
+                       'num_decoder_layers': 2,  
+                       'dim_feedforward': 64},
+                      {'num_encoder_layers': 3, 
+                       'num_decoder_layers': 3,  
+                       'dim_feedforward': 64},
+                      {'num_encoder_layers': 1, 
+                       'num_decoder_layers': 1,  
+                       'dim_feedforward': 128},
+                      {'num_encoder_layers': 1, 
+                       'num_decoder_layers': 1,  
+                       'dim_feedforward': 256}]
+     elif model_name == 'NBEATS':
+        nn_options = [{'layer_widths': 25, 'num_layers': 1},
+                      {'layer_widths': 25, 'num_layers': 2},
+                      {'layer_widths': 25, 'num_layers': 3},
+                      {'layer_widths': 25, 'num_layers': 4},
+                      {'layer_widths': 100,'num_layers': 1}]
+    elif model_name == 'TCN':
+        nn_options = [{'num_layers': None},
+                      {'num_layers': 1},
+                      {'num_layers': 2},
+                      {'num_layers': 3},
+                      {'num_layers': 4}]
+
+    return nn_options
+    
 
 def crps(forecast, observed, observed_is_ts=False):
     """
@@ -278,6 +345,7 @@ def season_doy_range(year, month, day):
 class TimeSeriesPreprocessor():
     def __init__(self,
                  input_csv_name = "targets.csv.gz",
+                 s3_client = None,
                  load_dir_name: Optional[str] = "preprocessed_timeseries/",
                  datetime_column_name: Optional[str] = "datetime",
                  validation_split_date: Optional[str] = "2023-03-09",
@@ -290,7 +358,7 @@ class TimeSeriesPreprocessor():
         self.datetime_column_name = datetime_column_name
         self.filter_kw_args = filter_kw_args
         self.sites_dict = {}
-
+        self.s3_client = s3_client
         self.year = int(validation_split_date[:4])
         month = int(validation_split_date[5:7])
         day = int(validation_split_date[8:])
@@ -465,19 +533,19 @@ class TimeSeriesPreprocessor():
             self.doy_dict[variable] = doy_df
     
     def save(self):
-        # Check if there's a dir already
-        if not os.path.exists(self.load_dir_name):
-            os.makedirs(self.load_dir_name)
-
         # Saving each TimeSeries
         for site in self.sites_dict.keys():
             for variable in self.sites_dict[site]:
                 df = self.sites_dict[site][variable].pd_dataframe(suppress_warnings=True)
                 file_name = f"{self.load_dir_name}{site}-{variable}.csv"
                 # Saving to S3 bucket if flagged
-                if s3_flag:
-                    upload_df_to_s3(file_name, df, s3)
+                if self.s3_client is not None:
+                    upload_df_to_s3(file_name, df, self.s3_client)
                 else:
+                    # Check if there's a dir already
+                    if not os.path.exists(self.load_dir_name):
+                        os.makedirs(self.load_dir_name)
+
                     df.to_csv(file_name)
 
     def load(self, site):
@@ -496,8 +564,8 @@ class TimeSeriesPreprocessor():
                 # Reading in file name
                 site, variable = file.replace(".csv", "").split("-") 
                 file_path = os.path.join(self.load_dir_name, file)
-                if s3_flag:
-                    df = download_df_from_s3(file_path, s3)
+                if self.s3_client is not None:
+                    df = download_df_from_s3(file_path, self.s3_client)
                 else:
                     df = pd.read_csv(file_path)
     
@@ -542,10 +610,10 @@ class BaseForecaster():
                  site_id: Optional[str] = None,
                  epochs: Optional[int] = 1,
                  num_samples: Optional[int] = 500,
-                 num_trials: Optional[int] = 50,
                  seed: Optional[int] = 0,
                  verbose: Optional[bool] = False,
                  targets_csv: Optional[str] = "targets.csv.gz",
+                 s3_client: Optional = None,
                  ):
         self.model_ = {"BlockRNN": BlockRNNModel, 
                        "TCN": TCNModel, 
@@ -553,11 +621,10 @@ class BaseForecaster():
                        "Transformer": TransformerModel,
                        "NLinear": NLinearModel,
                        "DLinear": DLinearModel,
-                       "XGB": XGBModel,
                        "NBEATS": NBEATSModel,
-                       "Linear": LinearRegressionModel,
                        "TFT": TFTModel}[model]
         self.validate_preprocessor = validate_preprocessor
+        self.s3_client = s3_client
         self.target_variable = target_variable
         self.datetime_column_name = datetime_column_name
         self.covariates_names = covariates_names
@@ -570,7 +637,6 @@ class BaseForecaster():
         self.num_samples = num_samples
         self.num_trials = num_trials
         self.seed = seed
-        self.tuned = False
         self.verbose = verbose
         self.dropout = None
         self.targets_df = pd.read_csv(targets_csv)
@@ -583,6 +649,11 @@ class BaseForecaster():
         self.training_set, self.covs_train = self._preprocess_data(train_preprocessor)
         self.inputs, self.covariates = self._preprocess_data(validate_preprocessor,
                                                              train_set=False)
+
+        if s3_client is None:
+            # Handling csv names and directories for the final forecast
+            if not os.path.exists(f"forecasts/{args.site}/{args.target}/"):
+                os.makedirs(f"forecasts/{args.site}/{args.target}/")
         
     def _preprocess_data(self, data_preprocessor, train_set=True):
         """
@@ -685,135 +756,6 @@ class BaseForecaster():
             )
         return check_set_list 
         
-    def tune(self,
-             hyperparameter_dict: Optional[dict]
-            ):
-        """
-        Sets up Optuna trial to perform hyperparameter tuning
-        Input dictionary will be of the form {"hyperparamter": [values to be tested]}
-        """
-        # Setting up an optuna Trial
-        def objective(trial):
-            # Selecting hyperparameters for the trial
-            hyperparams = {key: trial.suggest_categorical(key, value) 
-                                               for key, value in hyperparameter_dict.items()}
-
-            # Will stop training when validation loss does not decrease more than 0.05 (`min_delta`) over
-            # a period of 5 epochs (`patience`)
-            my_stopper = EarlyStopping(
-                monitor="val_loss",
-                patience=10,
-                min_delta=0.05,
-                mode='min',
-            )
-            pl_trainer_kwargs={"callbacks": [my_stopper]}
-            # And watching SMAPE
-            torch_metrics = SymmetricMeanAbsolutePercentageError()
-
-            # Need to format some hypers
-            hyperparams = self.prepare_hyperparams(hyperparams)
-
-            model = self.model_(
-                **hyperparams,
-                output_chunk_length=self.forecast_horizon,
-                **self.model_likelihood,
-                random_state=self.seed,
-                pl_trainer_kwargs=pl_trainer_kwargs,
-                torch_metrics=torch_metrics
-            )
-
-            extras = {"verbose": False,
-                      "epochs": self.epochs}
-            predict_kws = {"n": self.forecast_horizon,
-                           "num_samples": self.num_samples}
-            self.scaler = Scaler()
-            self.scaler_cov = Scaler()
-            # Some models don't use past covariates, so the inputs
-            # for these classes of models need to be handled differently
-            if self.covariates is not None:
-                training_set = self.scaler.fit_transform(self.training_set)
-                covariates = self.scaler_cov.fit_transform(self.covs_train)
-                extras["past_covariates"] = covariates
-                # Handling training and validation series + covariates differently
-                # because they were preprocessed separately
-                extras['val_series'] = self.get_validation_set(
-                    self.scaler,
-                    hyperparams['input_chunk_length']
-                )
-                extras["val_past_covariates"] = [
-                    self.scaler_cov.transform(self.covariates) \
-                      for i in range(len(extras['val_series']))
-                ]
-            else:
-                training_set = self.scaler.fit_transform(self.training_set)
-                validation_set = self.get_validation_set(
-                    self.scaler,
-                    hyperparams['input_chunk_length']
-                )
-                extras["val_series"] = validation_set
-
-            # Need to delete epochs which aren't used in the regression models
-            if self.model_ == XGBModel or self.model_ == LinearRegressionModel:
-                del extras["epochs"]
-                del extras["verbose"]
-
-            assert training_set.time_index[-1] == self.split_date, "There is a" +\
-             " misalignment between the training set and the specified validation" +\
-             " split date. Note that the validation split date is defined to" +\
-             " include the last date of the training set."
-
-            model.fit(training_set, **extras)
-
-            # Preparing the series and covariates to input to the predict call
-            predict_series = self.get_predict_set(
-                self.scaler,
-                hyperparams['input_chunk_length']
-            )
-            
-            predict_kws = {'num_samples': 500}
-            if self.covariates is not None:
-                predict_kws['past_covariates'] = extras['val_past_covariates']
-
-            predictions = model.predict(
-                n=self.forecast_horizon, 
-                series=predict_series, 
-                **predict_kws
-            )
-            
-            check_predictions = self.get_check_set(
-                self.scaler,
-                hyperparams['input_chunk_length']
-            )
-
-            # Making sure that predictions and their solutions align in dates
-            assert (
-                predictions[0].time_index[0] == check_predictions[0].time_index[0]
-            ), "Error with date alignment on tuning check"
-
-            # Computing CRPS for each prediction window from the validation set
-            # and taking the mean of these values.
-            crps_list = []
-            for i in range(len(predictions)):
-                crps_list.append(
-                    crps(
-                        predictions[i],
-                        check_predictions[i],
-                        observed_is_ts=True
-                    ).pd_dataframe(suppress_warnings=True).values
-                ) 
-            crps_mean = np.array(crps_list).mean()
-
-            # Tuning will provide the score with the lowest mean CRPS over
-            # the validation set which includes 11 evenly-spaced windows
-            # over the year
-            return crps_mean if crps_mean != np.nan else float("inf")
-
-        study = optuna.create_study(direction="minimize")
-        
-        study.optimize(objective, n_trials=self.num_trials)
-        
-        self.hyperparams = study.best_trial.params
-        self.tuned = True
         
     def make_forecasts(self):
         """
@@ -878,11 +820,6 @@ class BaseForecaster():
             )
             extras["val_series"] = validation_set
 
-        # Regression models don't accept these key word arguments for .fit()
-        if self.model_ == XGBModel or self.model_ == LinearRegressionModel:
-            del extras["epochs"]
-            del extras["verbose"]
-
         assert training_set.time_index[-1] == self.split_date, "There is a" +\
          " misalignment between the training set and the specified validation split" +\
          " date. Note that the validation split date is defined to include the last" +\
@@ -901,23 +838,17 @@ class BaseForecaster():
                       for i in range(len(predict_series))
             ]
 
-        # Accounting for if there is dropout; Might delete this as this wasn't an interesting
-        # excursion
-        if "dropout" in list(self.model_likelihood.keys()):
-            predict_kws["mc_dropout"] = True
-
         predictions = self.model.predict( 
             series=predict_series, 
             **predict_kws
         )
         for prediction in predictions:
-            # CHANGE THIS TO WORK WITH BUCKET
             prediction = self.scaler.inverse_transform(prediction)
             csv_name = self.output_csv_name + "_" + \
                            prediction.time_index[0].strftime('%Y_%m_%d.csv')
             df = prediction.pd_dataframe(suppress_warnings=True)
-            if s3_flag:
-                upload_df_to_s3(csv_name, df, s3)
+            if self.s3_client is not None:
+                upload_df_to_s3(csv_name, df, self.s3_client)
             else:
                 df.to_csv(csv_name)
             

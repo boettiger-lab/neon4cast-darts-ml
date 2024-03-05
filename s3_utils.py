@@ -27,7 +27,11 @@ def upload_df_to_s3(object_name, dataframe, s3_client):
     csv_buffer = StringIO()
     dataframe.to_csv(csv_buffer, index=False)
     
-    s3_client.put_object(Bucket='neon4cast-darts-ml', Key=object_name, Body=csv_buffer.getvalue())
+    s3_client.put_object(
+        Bucket='neon4cast-darts-ml', 
+        Key=object_name, 
+        Body=csv_buffer.getvalue(),
+    )
 
 def download_df_from_s3(object_name, s3_client):
     # Get the CSV file object from S3
