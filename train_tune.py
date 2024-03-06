@@ -44,6 +44,12 @@ parser.add_argument("--device", default=0, type=int,
                     help="Specify which GPU device to use [0,1].")
 parser.add_argument("--suffix", default=None, type=str,
                     help="Suffix to append to the output csv of the forecast.")
+parser.add_argument("--bucket", default='shared-neon4cast', type=str,
+                    help="Bucket name to connect to.")
+parser.add_argument("--endpoint", default='https://data.carlboettiger.info', type=str,
+                    help="S3 Endpoint.")
+parser.add_argument("--accesskey", default='shared_neon4cast_darts.json', type=str,
+                    help="JSON file with access key for bucket (if required).")
 args = parser.parse_args()
 
 # PUT IN ABILITY FOR BUCKET NAME, END POINT ETC. OPTIONS
@@ -54,7 +60,10 @@ args = parser.parse_args()
 # Need to flag to say forecast didn't use covariates; also need to be careful with
 # time axis encoder here, need to save these differently
 if __name__ == "__main__":
-    s3_client = establish_s3_connection() 
+    s3_client = establish_s3_connection(
+        endpoint=args.endpoint,
+        json_file=args.accesskey,
+    ) 
     # Selecting the device
     os.environ["CUDA_VISIBLE_DEVICES"] = "1" if args.device else "0"
     

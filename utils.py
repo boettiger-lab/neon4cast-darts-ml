@@ -40,14 +40,16 @@ from s3_utils import(
     ls_bucket,
 )
 
-def establish_s3_connection(endpoint='https://minio.carlboettiger.info', json_file='bucket_key_alt.json'):
+def establish_s3_connection(
+    endpoint='https://minio.carlboettiger.info', 
+    json_file='shared_neon4cast_darts.json'):
     '''
     This function establishes a connection to a S3 bucket. If the bucket requires a token to 
     access, then input json_file as an kw argument.
     '''
     try:
         access_key_id, secret_access_key = read_credentials_from_json(json_file)
-    except FileNotFoundError:
+    except:
         access_key_id = None
         secret_access_key = None
     
@@ -58,16 +60,15 @@ def establish_s3_connection(endpoint='https://minio.carlboettiger.info', json_fi
                 endpoint_url=endpoint,
                 aws_access_key_id=access_key_id,
                 aws_secret_access_key=secret_access_key,
+                addressing_style='path',
             )
-            print('Using an S3 client with MinIO.')
         else:
             s3 = boto3.client(
                 's3',
                 endpoint_url=endpoint,
             )
-            print('Using an S3 client with MinIO without access keys.')
-    except Exception as e:
-        print(f'Error: {e}')
+        print('Using MinIO for storage.')
+    except:
         s3 = None
 
     return s3
@@ -107,7 +108,7 @@ def handle_nn_architecture(model_name):
                       {'num_encoder_layers': 1, 
                        'num_decoder_layers': 1,  
                        'dim_feedforward': 256}]
-     elif model_name == 'NBEATS':
+    elif model_name == 'NBEATS':
         nn_options = [{'layer_widths': 25, 'num_layers': 1},
                       {'layer_widths': 25, 'num_layers': 2},
                       {'layer_widths': 25, 'num_layers': 3},
@@ -346,6 +347,7 @@ class TimeSeriesPreprocessor():
     def __init__(self,
                  input_csv_name = "targets.csv.gz",
                  s3_client = None,
+                 bucket_name = None,
                  load_dir_name: Optional[str] = "preprocessed_timeseries/",
                  datetime_column_name: Optional[str] = "datetime",
                  validation_split_date: Optional[str] = "2023-03-09",
@@ -359,6 +361,7 @@ class TimeSeriesPreprocessor():
         self.filter_kw_args = filter_kw_args
         self.sites_dict = {}
         self.s3_client = s3_client
+        self.bucket_name = bucket_name
         self.year = int(validation_split_date[:4])
         month = int(validation_split_date[5:7])
         day = int(validation_split_date[8:])
@@ -540,7 +543,11 @@ class TimeSeriesPreprocessor():
                 file_name = f"{self.load_dir_name}{site}-{variable}.csv"
                 # Saving to S3 bucket if flagged
                 if self.s3_client is not None:
-                    upload_df_to_s3(file_name, df, self.s3_client)
+                    upload_df_to_s3(
+                        file_name, df, 
+                        self.s3_client, 
+                        self.bucket_name,
+                    )
                 else:
                     # Check if there's a dir already
                     if not os.path.exists(self.load_dir_name):
@@ -556,7 +563,11 @@ class TimeSeriesPreprocessor():
         
         # Need to fill sites_dict and sites_dict_null
         if s3_flag:
-            files = ls_bucket(self.load_dir_name, s3)
+            files = ls_bucket(
+                self.load_dir_name,
+                self.s3_client,
+                self.bucket_name
+            )
         else:
             files = os.listdir(self.load_dir_name)
         for file in files:
@@ -565,7 +576,11 @@ class TimeSeriesPreprocessor():
                 site, variable = file.replace(".csv", "").split("-") 
                 file_path = os.path.join(self.load_dir_name, file)
                 if self.s3_client is not None:
-                    df = download_df_from_s3(file_path, self.s3_client)
+                    df = download_df_from_s3(
+                        file_path, 
+                        self.s3_client, 
+                        self.bucket_name,
+                    )
                 else:
                     df = pd.read_csv(file_path)
     
