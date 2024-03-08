@@ -1,6 +1,7 @@
 import boto3
 import json
 from io import StringIO
+import pandas as pd
 
 def ls_bucket(bucket_name, directory_prefix, s3_client):
     """
@@ -13,7 +14,8 @@ def ls_bucket(bucket_name, directory_prefix, s3_client):
     file_keys = []
     if 'Contents' in response:
         for obj in response['Contents']:
-            file_keys.append(obj['Key'])
+            file_name = obj['Key'].split('/')[-1]
+            file_keys.append(file_name)
 
     return file_keys
 
@@ -25,7 +27,7 @@ def read_credentials_from_json(file_path):
 def upload_df_to_s3(object_name, dataframe, s3_client, bucket_name):
     # Convert DataFrame to CSV format in memory
     csv_buffer = StringIO()
-    dataframe.to_csv(csv_buffer, index=False)
+    dataframe.to_csv(csv_buffer)
     
     s3_client.put_object(
         Bucket=bucket_name, 
@@ -42,18 +44,3 @@ def download_df_from_s3(object_name, s3_client, bucket_name):
     df = pd.read_csv(StringIO(csv_data))
 
     return df
-
-def ls_bucket(directory_prefix, s3_client, bucket_name):
-    """
-    List files in a directory (prefix) within an S3 bucket.
-    """
-    # List objects in the specified directory
-    response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=directory_prefix)
-
-    # Extract file keys from the response
-    file_keys = []
-    if 'Contents' in response:
-        for obj in response['Contents']:
-            file_keys.append(obj['Key'])
-
-    return file_keys

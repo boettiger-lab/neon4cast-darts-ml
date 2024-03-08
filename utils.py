@@ -42,7 +42,7 @@ from s3_utils import(
 
 def establish_s3_connection(
     endpoint='https://minio.carlboettiger.info', 
-    json_file='shared_neon4cast_darts.json'):
+    json_file='credentials.json'):
     '''
     This function establishes a connection to a S3 bucket. If the bucket requires a token to 
     access, then input json_file as an kw argument.
@@ -60,16 +60,16 @@ def establish_s3_connection(
                 endpoint_url=endpoint,
                 aws_access_key_id=access_key_id,
                 aws_secret_access_key=secret_access_key,
-                addressing_style='path',
             )
         else:
             s3 = boto3.client(
                 's3',
                 endpoint_url=endpoint,
             )
-        print('Using MinIO for storage.')
+        print(f'Using {endpoint} for data storage and access.')
     except:
         s3 = None
+        print('Using local for data storage and access.')
 
     return s3
 
@@ -560,11 +560,12 @@ class TimeSeriesPreprocessor():
         variables_present = []
         
         # Need to fill sites_dict and sites_dict_null
-        if s3_flag:
+        if self.s3_client is not None:
+            import pdb; pdb.set_trace()
             files = ls_bucket(
+                self.bucket_name,
                 self.load_dir_name,
                 self.s3_client,
-                self.bucket_name
             )
         else:
             files = os.listdir(self.load_dir_name)
