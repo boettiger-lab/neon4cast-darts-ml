@@ -3,7 +3,6 @@ from darts.utils.likelihood_models import (
 )
 from utils import (
     BaseForecaster, 
-    ResidualForecaster,
     TimeSeriesPreprocessor,
     handle_nn_architecture,
     establish_s3_connection,
@@ -44,7 +43,7 @@ parser.add_argument("--device", default=0, type=int,
                     help="Specify which GPU device to use [0,1].")
 parser.add_argument("--suffix", default=None, type=str,
                     help="Suffix to append to the output csv of the forecast.")
-parser.add_argument("--bucket", default='shared-neon4cast', type=str,
+parser.add_argument("--bucket", default='shared-neon4cast-darts', type=str,
                     help="Bucket name to connect to.")
 parser.add_argument("--endpoint", default='https://data.carlboettiger.info', type=str,
                     help="S3 Endpoint.")
@@ -89,6 +88,8 @@ if __name__ == "__main__":
         preprocessor = TimeSeriesPreprocessor(
             input_csv_name = "targets.csv.gz",
             load_dir_name = f"preprocessed_{suffix}/",
+            s3_client=s3_client,
+            bucket_name=args.bucket
         )
         preprocessor.load(args.site)
         data_preprocessors.append(preprocessor)
@@ -117,6 +118,7 @@ if __name__ == "__main__":
             model_hyperparameters=model_hyperparameters,
             model_likelihood=model_likelihood,
             site_id=args.site,
+            s3_client=s3_client,
             **extras,
         )
         
