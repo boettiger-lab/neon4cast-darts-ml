@@ -45,9 +45,9 @@ parser.add_argument("--suffix", default=None, type=str,
                     help="Suffix to append to the output csv of the forecast.")
 parser.add_argument("--bucket", default='shared-neon4cast-darts', type=str,
                     help="Bucket name to connect to.")
-parser.add_argument("--endpoint", default='https://data.carlboettiger.info', type=str,
+parser.add_argument("--endpoint", default='https://minio.carlboettiger.info', type=str,
                     help="S3 Endpoint.")
-parser.add_argument("--accesskey", default='shared_neon4cast_darts.json', type=str,
+parser.add_argument("--accesskey", default='credentials.json', type=str,
                     help="JSON file with access key for bucket (if required).")
 args = parser.parse_args()
 
@@ -64,7 +64,7 @@ if __name__ == "__main__":
         json_file=args.accesskey,
     ) 
     # Selecting the device
-    os.environ["CUDA_VISIBLE_DEVICES"] = "1" if args.device else "0"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
     
     
     # Loading hyperparameters
@@ -83,16 +83,16 @@ if __name__ == "__main__":
         covariates_list = None
 
     # Loading data preprocessors for training and validation
-    data_preprocessors = []
+    preprocessors = []
     for suffix in ['train', 'validate']:
         preprocessor = TimeSeriesPreprocessor(
             input_csv_name = "targets.csv.gz",
             load_dir_name = f"preprocessed_{suffix}/",
             s3_client=s3_client,
-            bucket_name=args.bucket
+            bucket_name=args.bucket,
         )
         preprocessor.load(args.site)
-        data_preprocessors.append(preprocessor)
+        preprocessors.append(preprocessor)
     
     
     output_csv_name = f"forecasts/{args.site}/{args.target}/{args.model}"
