@@ -24,7 +24,7 @@ parser.add_argument("--target", default="oxygen", type=str,
                     "[oxygen, temperature, chla].")
 parser.add_argument("--site", default="BARC", type=str,
                     help="Denotes which site to use.")
-parser.add_argument("--date", default="2023-03-09", type=str,
+parser.add_argument("--date", default="2022-07-19", type=str,
                     help="Flags for the validation split date, "+\
                     "n.b. that this should align with last date " +\
                     "of the preprocessed time series.")
@@ -50,8 +50,6 @@ parser.add_argument("--endpoint", default='https://minio.carlboettiger.info', ty
 parser.add_argument("--accesskey", default='credentials.json', type=str,
                     help="JSON file with access key for bucket (if required).")
 args = parser.parse_args()
-
-# PUT IN ABILITY FOR BUCKET NAME, END POINT ETC. OPTIONS
 
 # For non-quantile regression, add 2 CL flags, one to store true another
 # to say which non-quantile regression to use, also need to save these differently
@@ -106,7 +104,10 @@ if __name__ == "__main__":
     nn_args = handle_nn_architecture(args.model)
 
     for i, nn_arg in enumerate(nn_args):
-        model_parameters = hyperparams_dict["model_hyperparameters"].update(nn_args)
+        model_hyperparameters = {
+            **hyperparams_dict["model_hyperparameters"],
+            **nn_arg,
+        }
         forecaster = BaseForecaster(
             model=args.model,
             target_variable=args.target,
@@ -132,25 +133,28 @@ if __name__ == "__main__":
         if args.test:
             log_directory = f"forecasts/{args.site}/{args.target}/logs/"
             # REVISIT THIS BLOCK
-            if self.s3_client is None:
+            if s3_client is None:
                 if not os.path.exists(log_directory):
                     os.makedirs(log_directory)
     
             csv_title = forecaster.output_csv_name.split("/")[-1].split(".")[0]
             log_file_name = log_directory + csv_title
     
-            with open(f"{log_file_name}.yaml", 'w') as file:
-                hyperparams = {"model_hyperparameters": forecaster.hyperparams, 
-                               "model_likelihood": forecaster.model_likelihood,
-                               "epochs": args.epochs}
-                if self.s3_client is None:
-                    yaml.dump(hyperparams, file, default_flow_style=False)
-                else:
-                    yaml_content = yaml.dump(hyperparams)
-                    s3_client.put_object(
-                        Body=yaml_content, 
-                        Bucket='neon4cast-darts-ml', 
-                        Key=log_file_name,
-                    )
+            hyperparams = {"model_hyperparameters": forecaster.hyperparams, 
+                           "model_likelihood": forecaster.model_likelihood,
+                           "epochs": args.epochs}
+            if s3_client is None:
+                yaml.dump(
+                    hyperparams, 
+                    f"{log_file_name}.yaml", 
+                    default_flow_style=False,
+                )
+            else:
+                yaml_content = yaml.dump(hyperparams)
+                s3_client.put_object(
+                    Body=yaml_content, 
+                    Bucket=args.bucket, 
+                    Key=f"{log_file_name}.yaml",
+                )
     
     print(f"Runtime for {args.model} on {args.target} at {args.site}: {(time.time() - start)/60:.2f} minutes")

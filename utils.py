@@ -20,7 +20,6 @@ from darts.models import (
 )
 from darts.utils.likelihood_models import QuantileRegression
 from darts.dataprocessing.transformers import Scaler
-from darts.metrics import smape
 from datetime import datetime, timedelta
 import CRPS.CRPS as forecastscore
 import os
@@ -541,7 +540,8 @@ class TimeSeriesPreprocessor():
                 # Saving to S3 bucket if flagged
                 if self.s3_client is not None:
                     upload_df_to_s3(
-                        file_name, df, 
+                        file_name, 
+                        df, 
                         self.s3_client, 
                         self.bucket_name,
                     )
@@ -625,6 +625,7 @@ class BaseForecaster():
                  verbose: Optional[bool] = False,
                  targets_csv: Optional[str] = "targets.csv.gz",
                  s3_client: Optional = None,
+                 bucket_name: Optional[str] = 'shared-neon4cast-darts'
                  ):
         self.model_ = {"BlockRNN": BlockRNNModel, 
                        "TCN": TCNModel, 
@@ -636,6 +637,7 @@ class BaseForecaster():
                        "TFT": TFTModel}[model]
         self.validate_preprocessor = validate_preprocessor
         self.s3_client = s3_client
+        self.bucket_name = bucket_name
         self.target_variable = target_variable
         self.covariates_names = covariates_names
         self.covariates = None
@@ -645,7 +647,6 @@ class BaseForecaster():
         self.site_id = site_id
         self.epochs = epochs
         self.num_samples = num_samples
-        self.num_trials = num_trials
         self.seed = seed
         self.verbose = verbose
         self.dropout = None
@@ -781,8 +782,6 @@ class BaseForecaster():
                 mode='min',
         )
         pl_trainer_kwargs={"callbacks": [my_stopper]}
-        # And watching SMAPE
-        torch_metrics = SymmetricMeanAbsolutePercentageError()
         
         # Need to handle lags and time axis encoders
         self.hyperparams = self.prepare_hyperparams(self.hyperparams)
@@ -793,7 +792,6 @@ class BaseForecaster():
             **self.model_likelihood,
             random_state=self.seed,
             pl_trainer_kwargs=pl_trainer_kwargs,
-            torch_metrics=torch_metrics,
         )
         
         extras = {
@@ -858,7 +856,7 @@ class BaseForecaster():
                            prediction.time_index[0].strftime('%Y_%m_%d.csv')
             df = prediction.pd_dataframe(suppress_warnings=True)
             if self.s3_client is not None:
-                upload_df_to_s3(csv_name, df, self.s3_client)
+                upload_df_to_s3(csv_name, df, self.s3_client, self.bucket_name)
             else:
                 df.to_csv(csv_name)
             
