@@ -41,8 +41,8 @@ parser.add_argument("--test", default=True, action="store_false",
                     "from being saved.")
 parser.add_argument("--device", default=0, type=int,
                     help="Specify which GPU device to use [0,1].")
-parser.add_argument("--suffix", default=None, type=str,
-                    help="Suffix to append to the output csv of the forecast.")
+parser.add_argument("--prefix", default=None, type=str,
+                    help="Prefix to use with the output csv of the forecast.")
 parser.add_argument("--bucket", default='shared-neon4cast-darts', type=str,
                     help="Bucket name to connect to.")
 parser.add_argument("--endpoint", default='https://minio.carlboettiger.info', type=str,
@@ -69,7 +69,8 @@ if __name__ == "__main__":
     hyperparams_loc = f"hyperparameters/train/{args.target}/{args.model}"
     with open(f"{hyperparams_loc}.yaml") as f:
         hyperparams_dict = yaml.safe_load(f)
-    # 
+    # To make the forecast probabilistic, we the train the models
+    # to perform quantile regression
     model_likelihood = {"likelihood": QuantileRegression([0.01, 0.05, 0.1, 
                                                           0.3, 0.5, 0.7, 
                                                           0.9, 0.95, 0.99])}
@@ -93,9 +94,9 @@ if __name__ == "__main__":
         preprocessors.append(preprocessor)
     
     
-    output_csv_name = f"forecasts/{args.site}/{args.target}/{args.model}"
-    if args.suffix is not None:
-        output_csv_name += f"_{args.suffix}"
+    output_csv_name = f"forecasts/{args.site}/{args.target}/{args.model}/"
+    if args.prefix is not None:
+        output_csv_name += f"{args.prefix}"
     
     # Instantiating the model
     extras = {"epochs": args.epochs,
@@ -114,7 +115,7 @@ if __name__ == "__main__":
             train_preprocessor=preprocessors[0],
             validate_preprocessor=preprocessors[1],
             covariates_names=covariates_list,
-            output_csv_name=f"{output_csv_name}_{i}.csv",
+            output_csv_name=f"{output_csv_name}{i}",
             validation_split_date=args.date,
             model_hyperparameters=model_hyperparameters,
             model_likelihood=model_likelihood,
@@ -131,12 +132,12 @@ if __name__ == "__main__":
         # For organizational purposes, saving information about the model
         # in a log directory where forecast csv is outputtred
         if args.test:
-            log_directory = f"forecasts/{args.site}/{args.target}/logs/"
+            log_directory = f"forecasts/{args.site}/{args.target}/{args.model}/logs/"
             # REVISIT THIS BLOCK
             if s3_client is None:
                 if not os.path.exists(log_directory):
                     os.makedirs(log_directory)
-    
+                    
             csv_title = forecaster.output_csv_name.split("/")[-1].split(".")[0]
             log_file_name = log_directory + csv_title
     

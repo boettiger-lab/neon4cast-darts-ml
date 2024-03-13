@@ -3,18 +3,24 @@ import json
 from io import StringIO
 import pandas as pd
 
-def ls_bucket(bucket_name, directory_prefix, s3_client):
+def ls_bucket(bucket_name, directory_prefix, s3_client, plotting=False):
     """
     List files in a directory (prefix) within an S3 bucket.
     """
     # List objects in the specified directory
+    import pdb; pdb.set_trace()
     response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=directory_prefix)
-
     # Extract file keys from the response
     file_keys = []
     if 'Contents' in response:
         for obj in response['Contents']:
-            file_name = obj['Key'].split('/')[-1]
+            if plotting:
+                file_name = obj['Key']
+                suffix = file_name.split('.')[-1]
+                if suffix != 'csv':
+                    file_name = None
+            else:
+                file_name = obj['Key'].split('/')[-1]
             file_keys.append(file_name)
 
     return file_keys

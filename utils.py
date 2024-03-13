@@ -880,6 +880,7 @@ class BaseForecaster():
 
         return hyperparams_dict
 
+# Change this to NaiveEnsemble
 def RegressionEnsembleForecaster(BaseForecaster):
     def __init__(self,
                  models: Optional[list] = None,
