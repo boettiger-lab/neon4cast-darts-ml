@@ -94,7 +94,7 @@ if __name__ == "__main__":
         preprocessors.append(preprocessor)
     
     
-    output_csv_name = f"forecasts/{args.site}/{args.target}/{args.model}/"
+    output_csv_name = f"forecasts/{args.site}/{args.target}/{args.model}"
     if args.prefix is not None:
         output_csv_name += f"{args.prefix}"
     
@@ -115,7 +115,7 @@ if __name__ == "__main__":
             train_preprocessor=preprocessors[0],
             validate_preprocessor=preprocessors[1],
             covariates_names=covariates_list,
-            output_csv_name=f"{output_csv_name}{i}",
+            output_csv_name=f"{output_csv_name}/model_{i}/",
             validation_split_date=args.date,
             model_hyperparameters=model_hyperparameters,
             model_likelihood=model_likelihood,
@@ -137,9 +137,9 @@ if __name__ == "__main__":
             if s3_client is None:
                 if not os.path.exists(log_directory):
                     os.makedirs(log_directory)
-                    
+
             csv_title = forecaster.output_csv_name.split("/")[-1].split(".")[0]
-            log_file_name = log_directory + csv_title
+            log_file_name = log_directory + csv_title + f"model_{i}.yaml"
     
             hyperparams = {"model_hyperparameters": forecaster.hyperparams, 
                            "model_likelihood": forecaster.model_likelihood,
@@ -147,7 +147,7 @@ if __name__ == "__main__":
             if s3_client is None:
                 yaml.dump(
                     hyperparams, 
-                    f"{log_file_name}.yaml", 
+                    log_file_name, 
                     default_flow_style=False,
                 )
             else:
@@ -155,7 +155,7 @@ if __name__ == "__main__":
                 s3_client.put_object(
                     Body=yaml_content, 
                     Bucket=args.bucket, 
-                    Key=f"{log_file_name}.yaml",
+                    Key=log_file_name,
                 )
     
     print(f"Runtime for {args.model} on {args.target} at {args.site}: {(time.time() - start)/60:.2f} minutes")

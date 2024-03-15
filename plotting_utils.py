@@ -208,6 +208,7 @@ def modify_score_dict(csv,
             forecast_df = pd.read_csv(csv)
     except:
         return score_dict
+
     forecast_df["datetime"] = pd.to_datetime(forecast_df["datetime"])
     times = pd.DatetimeIndex(forecast_df["datetime"])
     forecast_df = forecast_df.set_index("datetime")
@@ -234,12 +235,12 @@ def modify_score_dict(csv,
     except:
         return score_dict
 
-    # Initialize in case site id is empty at the site
+    # Initialize a score dict in case site id is empty at the site
     time_str = times[0].strftime('%Y_%m_%d')
     if time_str not in score_dict:
         score_dict[time_str] = {}
         
-    # Computing CRPS and recording
+    # Computing CRPS and RMSE
     filtered_validation_ts = TimeSeries.from_times_and_values(
         filtered_validation_series.index, 
         filtered_validation_series.values, 
@@ -270,8 +271,8 @@ def modify_score_dict(csv,
         'validation_split_date': str(times[0])[:10],
         'forecast_horizon': forecast_horizon,
     }
-    
 
+    # N.b. that index of 0 is for historical and 1 persistence
     null_models = [
         HistoricalForecaster(**input_dict), 
         NaivePersistenceForecaster(**input_dict)
@@ -343,6 +344,7 @@ def score_improvement_bysite(model, targets_df, target_variable, suffix="", s3_c
     # For each site, score CRPS and RMSE individually and add to score_dict
     for site_id in targets_df.site_id.unique():
         site_dict = {}
+        # Handling cases for if user wants data storage locally or remote
         if s3_client:
             try:
                 csv_list = ls_bucket(
@@ -507,7 +509,7 @@ def score_improvement_bysite(model, targets_df, target_variable, suffix="", s3_c
 
     return merged_df, intra_merged
     
-def plot_forecast(date, targets_df, site_id, target_variable, model_dir, plot_name=None):
+def plot_forecast(date, targets_df, site_id, target_variable, model, id, s3_dict={'s3_client': None, 'bucket': None}, plot_name=None):
     '''
     Returns a plot of the forecast specified by the date and model directory
     in addition to the observed values, the climatology forecast and the naive persistence
@@ -515,17 +517,24 @@ def plot_forecast(date, targets_df, site_id, target_variable, model_dir, plot_na
     '''
     cmap = mpl.colormaps["tab10"]
     colors = cmap.colors
-    # NEED TO UPDATE FOR BUCKET
     # Loading the forecast csv and creating a time series
-    csv_name = f"forecasts/{site_id}/{target_variable}/{model_dir}/forecast_{date}.csv"
-    df = pd.read_csv(csv_name)
+    if s3_dict['s3_client'] != None:
+        df = download_df_from_s3(
+            f'forecasts/{site_id}/{target_variable}/{model}/model_{id}/{date}.csv', 
+            s3_dict['s3_client'], 
+            s3_dict['bucket'],
+        )
+    else: 
+        csv_name = f"forecasts/{site_id}/{target_variable}/{model}/model_{id}/{date}.csv'"
+        df = pd.read_csv(csv_name)
+        
     times = pd.to_datetime(df["datetime"])
     times = pd.DatetimeIndex(times)
     values = df.loc[:, df.columns!="datetime"].to_numpy().reshape((len(times), 1, -1))
     model_forecast = TimeSeries.from_times_and_values(times, 
                                                       values, 
                                                       fill_missing_dates=True, freq="D")
-    model_forecast.plot(label=f"{model_dir}", color=colors[0])
+    model_forecast.plot(label=f"{model}_{id}", color=colors[0])
 
     # Getting the validation series directly from the targets csv
     date = model_forecast.time_index[0]

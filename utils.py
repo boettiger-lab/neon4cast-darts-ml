@@ -852,7 +852,7 @@ class BaseForecaster():
         )
         for prediction in predictions:
             prediction = self.scaler.inverse_transform(prediction)
-            csv_name = self.output_csv_name + "_" + \
+            csv_name = self.output_csv_name + \
                            prediction.time_index[0].strftime('%Y_%m_%d.csv')
             df = prediction.pd_dataframe(suppress_warnings=True)
             if self.s3_client is not None:

@@ -8,7 +8,6 @@ def ls_bucket(bucket_name, directory_prefix, s3_client, plotting=False):
     List files in a directory (prefix) within an S3 bucket.
     """
     # List objects in the specified directory
-    import pdb; pdb.set_trace()
     response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=directory_prefix)
     # Extract file keys from the response
     file_keys = []
