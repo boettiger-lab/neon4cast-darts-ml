@@ -773,7 +773,7 @@ class BaseForecaster():
         my_stopper = EarlyStopping(
                 monitor="val_loss",
                 patience=10,
-                min_delta=0.01,
+                min_delta=0.005,
                 mode='min',
         )
         pl_trainer_kwargs={"callbacks": [my_stopper]}
@@ -830,12 +830,6 @@ class BaseForecaster():
         
         self.model.fit(training_set, **extras)
 
-        model_dir = f'models/{self.output_name}/'
-        if not os.path.exists(model_dir):
-            os.makedirs(model_dir)
-        model_name = model_dir + 'weights.pt'
-        self.model.save(model_name)
-
         # Preparing input series and covariates for the predictions
         predict_series = self.get_predict_set(
                 self.scaler,
@@ -881,7 +875,8 @@ class BaseForecaster():
 
         return hyperparams_dict
 
-# Change this to NaiveEnsemble
+# Need to do this from scratch
+# where you take the forecast csv and aggregate
 def NaiveEnsembleForecaster(BaseForecaster):
     def __init__(self,
                  models: Optional[list] = None,
