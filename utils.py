@@ -342,8 +342,7 @@ def season_doy_range(year, month, day):
 class TimeSeriesPreprocessor():
     def __init__(self,
                  input_csv_name = "targets.csv.gz",
-                 s3_client = None,
-                 bucket_name = None,
+                 s3_dict: Optional[dict] = {'client': None, 'bucket': None},
                  load_dir_name: Optional[str] = "preprocessed_timeseries/",
                  datetime_column_name: Optional[str] = "datetime",
                  validation_split_date: Optional[str] = "2023-03-09",
@@ -356,8 +355,7 @@ class TimeSeriesPreprocessor():
         self.datetime_column_name = datetime_column_name
         self.filter_kw_args = filter_kw_args
         self.sites_dict = {}
-        self.s3_client = s3_client
-        self.bucket_name = bucket_name
+        self.s3_dict = s3_dict
         self.year = int(validation_split_date[:4])
         month = int(validation_split_date[5:7])
         day = int(validation_split_date[8:])
@@ -538,12 +536,11 @@ class TimeSeriesPreprocessor():
                 df = self.sites_dict[site][variable].pd_dataframe(suppress_warnings=True)
                 file_name = f"{self.load_dir_name}{site}-{variable}.csv"
                 # Saving to S3 bucket if flagged
-                if self.s3_client is not None:
+                if self.s3_dict['client']:
                     upload_df_to_s3(
                         file_name, 
                         df, 
-                        self.s3_client, 
-                        self.bucket_name,
+                        self.s3_dict
                     )
                 else:
                     # Check if there's a dir already
@@ -559,11 +556,10 @@ class TimeSeriesPreprocessor():
         variables_present = []
         
         # Need to fill sites_dict and sites_dict_null
-        if self.s3_client is not None:
+        if self.s3_dict['client']:
             files = ls_bucket(
-                self.bucket_name,
                 self.load_dir_name,
-                self.s3_client,
+                self.s3_dict,
             )
         else:
             files = os.listdir(self.load_dir_name)
@@ -572,11 +568,10 @@ class TimeSeriesPreprocessor():
                 # Reading in file name
                 site, variable = file.replace(".csv", "").split("-") 
                 file_path = os.path.join(self.load_dir_name, file)
-                if self.s3_client is not None:
+                if self.s3_dict['client'] is not None:
                     df = download_df_from_s3(
                         file_path, 
-                        self.s3_client, 
-                        self.bucket_name,
+                        self.s3_dict, 
                     )
                 else:
                     df = pd.read_csv(file_path)
@@ -586,10 +581,12 @@ class TimeSeriesPreprocessor():
                 times = pd.DatetimeIndex(times)
                 values = df.loc[:, df.columns!="datetime"].to_numpy()\
                         .reshape((-1, 1, self.filter_kw_args["num_samples"]))
-                time_series = TimeSeries.from_times_and_values(times, 
-                                                               values, 
-                                              fill_missing_dates=True, 
-                                                             freq="D")
+                time_series = TimeSeries.from_times_and_values(
+                    times, 
+                    values, 
+                    fill_missing_dates=True, 
+                    freq="D",
+                )
     
                 # Initialize the site dict entry if one doesn't exist already
                 if site not in self.sites_dict.keys():
@@ -624,8 +621,7 @@ class BaseForecaster():
                  seed: Optional[int] = 0,
                  verbose: Optional[bool] = False,
                  targets_csv: Optional[str] = "targets.csv.gz",
-                 s3_client: Optional = None,
-                 bucket_name: Optional[str] = 'shared-neon4cast-darts'
+                 s3_dict: Optional[dict] = {'client': None, 'bucket': None}
                  ):
         self.model_ = {"BlockRNN": BlockRNNModel, 
                        "TCN": TCNModel, 
@@ -636,8 +632,7 @@ class BaseForecaster():
                        "NBEATS": NBEATSModel,
                        "TFT": TFTModel}[model]
         self.validate_preprocessor = validate_preprocessor
-        self.s3_client = s3_client
-        self.bucket_name = bucket_name
+        self.s3_dict = s3_dict
         self.target_variable = target_variable
         self.covariates_names = covariates_names
         self.covariates = None
@@ -661,7 +656,7 @@ class BaseForecaster():
         self.inputs, self.covariates = self._preprocess_data(validate_preprocessor,
                                                              train_set=False)
     
-        if s3_client is None:
+        if s3_dict['client']:
             # Handling csv names and directories for the final forecast
             if not os.path.exists(f"forecasts/{args.site}/{args.target}/"):
                 os.makedirs(f"forecasts/{args.site}/{args.target}/")
@@ -855,8 +850,8 @@ class BaseForecaster():
             csv_name = self.output_csv_name + \
                            prediction.time_index[0].strftime('%Y_%m_%d.csv')
             df = prediction.pd_dataframe(suppress_warnings=True)
-            if self.s3_client is not None:
-                upload_df_to_s3(csv_name, df, self.s3_client, self.bucket_name)
+            if self.s3_dict['client']:
+                upload_df_to_s3(csv_name, df, self.s3_dict)
             else:
                 df.to_csv(csv_name)
             

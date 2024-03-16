@@ -195,15 +195,14 @@ def modify_score_dict(csv,
                       site_id, 
                       suffix, 
                       score_dict,
-                      s3_client=None,
-                      bucket_name=None):
+                      s3_dict={'client': None, 'bucket': None}):
     '''
     Returns a dictionary with the CRPS and RMSE scores for the ML model (whose forecast
     is provided in `csv`) as well as the historical and naive persistence model.
     '''
     try:
-        if s3_client:
-            forecast_df = download_df_from_s3(csv, s3_client, bucket_name)
+        if s3_dict['client']:
+            forecast_df = download_df_from_s3(csv, s3_dict)
         else:
             forecast_df = pd.read_csv(csv)
     except:
@@ -334,7 +333,7 @@ def modify_score_dict(csv,
     
     return score_dict
 
-def score_improvement_bysite(model, targets_df, target_variable, suffix="", s3_client=None, bucket_name=None):
+def score_improvement_bysite(model, targets_df, target_variable, suffix="", s3_dict={'client': None, 'bucket': None}):
     '''
     This function collects the forecast scores for the specifed model and target variable.
     Then it returns a dataframe with columns for the difference in CRPS and RMSE
@@ -345,12 +344,11 @@ def score_improvement_bysite(model, targets_df, target_variable, suffix="", s3_c
     for site_id in targets_df.site_id.unique():
         site_dict = {}
         # Handling cases for if user wants data storage locally or remote
-        if s3_client:
+        if s3_dict['client']:
             try:
                 csv_list = ls_bucket(
-                    bucket_name, 
                     f'forecasts/{site_id}/{target_variable}/{model}/', 
-                    s3_client, 
+                    s3_dict, 
                     plotting=True,
                 )
             except:
@@ -366,8 +364,7 @@ def score_improvement_bysite(model, targets_df, target_variable, suffix="", s3_c
                 site_id, 
                 suffix, 
                 site_dict,
-                s3_client,
-                bucket_name,
+                s3_dict=s3_dict
             )
         score_dict[site_id] = site_dict
 
@@ -509,7 +506,7 @@ def score_improvement_bysite(model, targets_df, target_variable, suffix="", s3_c
 
     return merged_df, intra_merged
     
-def plot_forecast(date, targets_df, site_id, target_variable, model, id, s3_dict={'s3_client': None, 'bucket': None}, plot_name=None):
+def plot_forecast(date, targets_df, site_id, target_variable, model, id_list, s3_dict={'client': None, 'bucket': None}, plot_name=None):
     '''
     Returns a plot of the forecast specified by the date and model directory
     in addition to the observed values, the climatology forecast and the naive persistence
@@ -517,24 +514,25 @@ def plot_forecast(date, targets_df, site_id, target_variable, model, id, s3_dict
     '''
     cmap = mpl.colormaps["tab10"]
     colors = cmap.colors
-    # Loading the forecast csv and creating a time series
-    if s3_dict['s3_client'] != None:
-        df = download_df_from_s3(
-            f'forecasts/{site_id}/{target_variable}/{model}/model_{id}/{date}.csv', 
-            s3_dict['s3_client'], 
-            s3_dict['bucket'],
-        )
-    else: 
-        csv_name = f"forecasts/{site_id}/{target_variable}/{model}/model_{id}/{date}.csv'"
-        df = pd.read_csv(csv_name)
-        
-    times = pd.to_datetime(df["datetime"])
-    times = pd.DatetimeIndex(times)
-    values = df.loc[:, df.columns!="datetime"].to_numpy().reshape((len(times), 1, -1))
-    model_forecast = TimeSeries.from_times_and_values(times, 
-                                                      values, 
-                                                      fill_missing_dates=True, freq="D")
-    model_forecast.plot(label=f"{model}_{id}", color=colors[0])
+    dfs = []
+    for i, id in enumerate(id_list):
+        # Loading the forecast csv and creating a time series
+        if s3_dict['client']:
+            df = download_df_from_s3(
+                f'forecasts/{site_id}/{target_variable}/{model}/model_{id}/{date}.csv', 
+                s3_dict
+            )
+        else: 
+            csv_name = f"forecasts/{site_id}/{target_variable}/{model}/model_{id}/{date}.csv'"
+            df = pd.read_csv(csv_name)
+    
+        times = pd.to_datetime(df["datetime"])
+        times = pd.DatetimeIndex(times)
+        values = df.loc[:, df.columns!="datetime"].to_numpy().reshape((len(times), 1, -1))
+        model_forecast = TimeSeries.from_times_and_values(times, 
+                                                          values, 
+                                                          fill_missing_dates=True, freq="D")
+        model_forecast.plot(label=f"{model}", color=colors[0])
 
     # Getting the validation series directly from the targets csv
     date = model_forecast.time_index[0]
@@ -573,7 +571,17 @@ def plot_forecast(date, targets_df, site_id, target_variable, model, id, s3_dict
     
     x = plt.xlabel("date")
     y = plt.ylabel(target_variable)
+    # Creating a legend and then removing duplicates
     ax = plt.gca()
+    handles, labels = plt.gca().get_legend_handles_labels()
+    unique_labels = []
+    unique_handles = []
+    for i, label in enumerate(labels):
+        if label not in unique_labels:
+            unique_labels.append(label)
+            unique_handles.append(handles[i])
+    
+    plt.legend(unique_handles, unique_labels)
     ax.spines["left"].set_visible(True)
     ax.spines["bottom"].set_visible(True)
     plt.grid(False)
@@ -584,25 +592,34 @@ def plot_forecast(date, targets_df, site_id, target_variable, model, id, s3_dict
             os.makedirs(f"plots/{site_id}/{target_variable}/")
         plt.savefig(f"plots/{site_id}/{target_variable}/{plot_name}")
 
-def plot_crps_bydate(glob_prefix, targets_df, site_id, target_variable, suffix="", plot_name=None):
+def plot_crps_bydate(model, model_id, targets_df, site_id, target_variable, s3_dict={'client': None, 'bucket': None}, suffix="", plot_name=None):
     '''
     Returns a strip plot of the crps scores for the inputted ML model and the climatology model at
     each forecast window
     '''
     plt.figure(figsize=(12, 8))
     score_dict = {}
-    
-    csv_list = sorted(glob.glob(glob_prefix))
+    csv_list = []
+    glob_prefix = f'forecasts/{site_id}/{target_variable}/{model}/model_{model_id}/'
+    if s3_dict['client']:
+        csv_list = ls_bucket(
+            glob_prefix,
+            s3_dict,
+        )
+        csv_list = [glob_prefix + csv_file for csv_file in csv_list]
+    else:
+        csv_list = sorted(glob.glob(glob_prefix))
     
     for csv in csv_list:
         score_dict = modify_score_dict(
-            csv, 
-            targets_df, 
-            target_variable, 
-            site_id, 
-            suffix, 
-            score_dict
-        )
+                csv, 
+                targets_df, 
+                target_variable, 
+                site_id, 
+                suffix, 
+                score_dict,
+                s3_dict,
+            )
 
     score_df = pd.DataFrame([(site_id, data_dict['crps_forecast'][i], data_dict['crps_historical'][i]) \
                                  for site_id, data_dict in score_dict.items() \
