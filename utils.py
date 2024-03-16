@@ -568,7 +568,7 @@ class TimeSeriesPreprocessor():
                 # Reading in file name
                 site, variable = file.replace(".csv", "").split("-") 
                 file_path = os.path.join(self.load_dir_name, file)
-                if self.s3_dict['client'] is not None:
+                if self.s3_dict['client']:
                     df = download_df_from_s3(
                         file_path, 
                         self.s3_dict, 
@@ -610,7 +610,7 @@ class BaseForecaster():
                  validate_preprocessor: Optional = None,
                  target_variable: Optional[str] = None,
                  covariates_names: Optional[list] = None,
-                 output_csv_name: Optional[str] = "default",
+                 output_name: Optional[str] = "default",
                  validation_split_date: Optional[str] = "2023-03-09", #YYYY-MM-DD n.b. this is inclusive
                  model_hyperparameters: Optional[dict] = None,
                  model_likelihood: Optional[dict] = None,
@@ -636,7 +636,7 @@ class BaseForecaster():
         self.target_variable = target_variable
         self.covariates_names = covariates_names
         self.covariates = None
-        self.output_csv_name = output_csv_name
+        self.output_name = output_name
         self.split_date = pd.to_datetime(validation_split_date)
         self.forecast_horizon = forecast_horizon
         self.site_id = site_id
@@ -656,7 +656,7 @@ class BaseForecaster():
         self.inputs, self.covariates = self._preprocess_data(validate_preprocessor,
                                                              train_set=False)
     
-        if s3_dict['client']:
+        if not s3_dict['client']:
             # Handling csv names and directories for the final forecast
             if not os.path.exists(f"forecasts/{args.site}/{args.target}/"):
                 os.makedirs(f"forecasts/{args.site}/{args.target}/")
@@ -674,7 +674,7 @@ class BaseForecaster():
             return "Cannot fit this target time series as no GP fit was performed."
         inputs = stitched_series_dict[self.target_variable]
 
-        if self.covariates_names is not None:
+        if self.covariates_names:
             # And not using the covariates that did not yield GP fits beforehand
             for null_variable in data_preprocessor.site_missing_variables:
                 if null_variable in self.covariates_names:
@@ -773,7 +773,7 @@ class BaseForecaster():
         my_stopper = EarlyStopping(
                 monitor="val_loss",
                 patience=10,
-                min_delta=0.02,
+                min_delta=0.01,
                 mode='min',
         )
         pl_trainer_kwargs={"callbacks": [my_stopper]}
@@ -800,7 +800,7 @@ class BaseForecaster():
 
         # Need to account for models that don't use past covariates
         self.scaler = Scaler()
-        if self.covariates is not None:
+        if self.covariates:
             self.scaler_cov = Scaler()
             training_set = self.scaler.fit_transform(self.training_set)
             covariates = self.scaler_cov.fit_transform(self.covs_train)
@@ -830,12 +830,18 @@ class BaseForecaster():
         
         self.model.fit(training_set, **extras)
 
+        model_dir = f'models/{self.output_name}/'
+        if not os.path.exists(model_dir):
+            os.makedirs(model_dir)
+        model_name = model_dir + 'weights.pt'
+        self.model.save(model_name)
+
         # Preparing input series and covariates for the predictions
         predict_series = self.get_predict_set(
                 self.scaler,
                 self.hyperparams['input_chunk_length']
         )
-        if self.covariates is not None:
+        if self.covariates:
             predict_kws['past_covariates'] = [
                     self.scaler_cov.transform(self.covariates) \
                       for i in range(len(predict_series))
@@ -847,7 +853,7 @@ class BaseForecaster():
         )
         for prediction in predictions:
             prediction = self.scaler.inverse_transform(prediction)
-            csv_name = self.output_csv_name + \
+            csv_name = 'forecasts/' + self.output_name + \
                            prediction.time_index[0].strftime('%Y_%m_%d.csv')
             df = prediction.pd_dataframe(suppress_warnings=True)
             if self.s3_dict['client']:
@@ -876,7 +882,7 @@ class BaseForecaster():
         return hyperparams_dict
 
 # Change this to NaiveEnsemble
-def RegressionEnsembleForecaster(BaseForecaster):
+def NaiveEnsembleForecaster(BaseForecaster):
     def __init__(self,
                  models: Optional[list] = None,
                  train_preprocessor: Optional = None,
@@ -884,7 +890,7 @@ def RegressionEnsembleForecaster(BaseForecaster):
                  target_variable: Optional[str] = None,
                  datetime_column_name: Optional[str] = "datetime",
                  covariates_names: Optional[list] = None,
-                 output_csv_name: Optional[str] = "default",
+                 output_name: Optional[str] = "default",
                  validation_split_date: Optional[str] = "2023-03-09", #YYYY-MM-DD n.b. this is inclusive
                  model_hyperparameters: Optional[dict] = None,
                  model_likelihood: Optional[dict] = None,
@@ -895,16 +901,16 @@ def RegressionEnsembleForecaster(BaseForecaster):
                  seed: Optional[int] = 0,
                  verbose: Optional[bool] = False,
                  targets_csv: Optional[str] = "targets.csv.gz",
-                 s3_client: Optional = None,
+                 s3_dict: Optional[dict] = {'client': None, 'bucket': None}
                  ):
         self.models = models
         self.train_preprocessor = train_preprocessor
         self.validate_preprocessor = validate_preprocessor
-        self.s3_client = s3_client
+        self.s3_dict = s3_dict
         self.target_variable = target_variable
         self.covariates_names = covariates_names
         self.covariates = None
-        self.output_csv_name = output_csv_name
+        self.output_name = output_name
         self.split_date = pd.to_datetime(validation_split_date)
         self.forecast_horizon = forecast_horizon
         self.site_id = site_id
@@ -925,7 +931,7 @@ def RegressionEnsembleForecaster(BaseForecaster):
         self.inputs, self.covariates = self._preprocess_data(validate_preprocessor,
                                                              train_set=False)
     
-        if self.s3_client is None:
+        if not self.s3_dict['client']:
             # Handling csv names and directories for the final forecast
             if not os.path.exists(f"forecasts/{args.site}/{args.target}/"):
                 os.makedirs(f"forecasts/{args.site}/{args.target}/")
@@ -982,7 +988,7 @@ def RegressionEnsembleForecaster(BaseForecaster):
             csv_name = self.output_csv_name + "_" + \
                            prediction.time_index[0].strftime('%Y_%m_%d.csv')
             df = prediction.pd_dataframe(suppress_warnings=True)
-            if self.s3_client is not None:
+            if self.s3_dict['client']:
                 upload_df_to_s3(csv_name, df, self.s3_client)
             else:
                 df.to_csv(csv_name)
@@ -1018,7 +1024,7 @@ def RegressionEnsembleForecaster(BaseForecaster):
             return "Cannot fit this target time series as no GP fit was performed."
         inputs = stitched_series_dict[self.target_variable]
 
-        if self.covariates_names is not None:
+        if self.covariates_names:
             # And not using the covariates that did not yield GP fits beforehand
             for null_variable in data_preprocessor.site_missing_variables:
                 if null_variable in self.covariates_names:

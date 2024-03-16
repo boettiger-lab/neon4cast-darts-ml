@@ -60,7 +60,8 @@ if __name__ == "__main__":
     s3_client = establish_s3_connection(
         endpoint=args.endpoint,
         json_file=args.accesskey,
-    ) 
+    )
+    s3_dict = {'client': s3_client, 'bucket': args.bucket}
     # Selecting the device
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
     
@@ -87,16 +88,15 @@ if __name__ == "__main__":
         preprocessor = TimeSeriesPreprocessor(
             input_csv_name = "targets.csv.gz",
             load_dir_name = f"preprocessed_{suffix}/",
-            s3_client=s3_client,
-            bucket_name=args.bucket,
+            s3_dict=s3_dict,
         )
         preprocessor.load(args.site)
         preprocessors.append(preprocessor)
     
     
-    output_csv_name = f"forecasts/{args.site}/{args.target}/{args.model}"
-    if args.prefix is not None:
-        output_csv_name += f"{args.prefix}"
+    output_name = f"{args.site}/{args.target}/{args.model}"
+    if args.prefix:
+        output_name += f"{args.prefix}"
     
     # Instantiating the model
     extras = {"epochs": args.epochs,
@@ -115,12 +115,12 @@ if __name__ == "__main__":
             train_preprocessor=preprocessors[0],
             validate_preprocessor=preprocessors[1],
             covariates_names=covariates_list,
-            output_csv_name=f"{output_csv_name}/model_{i}/",
+            output_name=f"{output_name}/model_{i}/",
             validation_split_date=args.date,
             model_hyperparameters=model_hyperparameters,
             model_likelihood=model_likelihood,
             site_id=args.site,
-            s3_client=s3_client,
+            s3_dict=s3_dict,
             **extras,
         )
         
@@ -134,17 +134,17 @@ if __name__ == "__main__":
         if args.test:
             log_directory = f"forecasts/{args.site}/{args.target}/{args.model}/logs/"
             # REVISIT THIS BLOCK
-            if s3_client is None:
+            if not s3_client:
                 if not os.path.exists(log_directory):
                     os.makedirs(log_directory)
 
-            csv_title = forecaster.output_csv_name.split("/")[-1].split(".")[0]
+            csv_title = forecaster.output_name.split("/")[-1].split(".")[0]
             log_file_name = log_directory + csv_title + f"model_{i}.yaml"
     
             hyperparams = {"model_hyperparameters": forecaster.hyperparams, 
                            "model_likelihood": forecaster.model_likelihood,
                            "epochs": args.epochs}
-            if s3_client is None:
+            if not s3_client:
                 yaml.dump(
                     hyperparams, 
                     log_file_name, 
