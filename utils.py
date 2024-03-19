@@ -14,8 +14,6 @@ from darts.models import (
     NLinearModel,
     DLinearModel,
     NBEATSModel,
-    RegressionEnsembleModel,
-    LinearRegressionModel,
     TFTModel,
 )
 from darts.utils.likelihood_models import QuantileRegression
@@ -877,179 +875,43 @@ class BaseForecaster():
 
 # Need to do this from scratch
 # where you take the forecast csv and aggregate
-def NaiveEnsembleForecaster(BaseForecaster):
+class NaiveEnsembleForecaster():
     def __init__(self,
-                 models: Optional[list] = None,
-                 train_preprocessor: Optional = None,
-                 validate_preprocessor: Optional = None,
-                 target_variable: Optional[str] = None,
-                 datetime_column_name: Optional[str] = "datetime",
-                 covariates_names: Optional[list] = None,
-                 output_name: Optional[str] = "default",
-                 validation_split_date: Optional[str] = "2023-03-09", #YYYY-MM-DD n.b. this is inclusive
-                 model_hyperparameters: Optional[dict] = None,
-                 model_likelihood: Optional[dict] = None,
-                 forecast_horizon: Optional[int] = 30,
+                 model_list: Optional[list] = None,
                  site_id: Optional[str] = None,
-                 epochs: Optional[int] = 1,
-                 num_samples: Optional[int] = 500,
-                 seed: Optional[int] = 0,
-                 verbose: Optional[bool] = False,
+                 target_variable: Optional[str] = None,
+                 date: Optional[str] = None,
+                 output_name: Optional[str] = "default",
                  targets_csv: Optional[str] = "targets.csv.gz",
                  s3_dict: Optional[dict] = {'client': None, 'bucket': None}
                  ):
-        self.models = models
-        self.train_preprocessor = train_preprocessor
-        self.validate_preprocessor = validate_preprocessor
-        self.s3_dict = s3_dict
-        self.target_variable = target_variable
-        self.covariates_names = covariates_names
-        self.covariates = None
-        self.output_name = output_name
-        self.split_date = pd.to_datetime(validation_split_date)
-        self.forecast_horizon = forecast_horizon
+        self.model_list = model_list
         self.site_id = site_id
-        self.epochs = epochs
-        self.num_samples = num_samples
-        self.num_trials = num_trials
-        self.seed = seed
-        self.verbose = verbose
-        self.dropout = None
+        self.target_variable = target_variable
+        self.date = date
+        self.output_name = output_name
         self.targets_df = pd.read_csv(targets_csv)
-        if model_hyperparameters == None:
-            self.hyperparams = {"input_chunk_length" : 31}
-        else:
-            self.hyperparams = model_hyperparameters
-        self.model_likelihood = model_likelihood
-
-        self.training_set, self.covs_train = self._preprocess_data(train_preprocessor)
-        self.inputs, self.covariates = self._preprocess_data(validate_preprocessor,
-                                                             train_set=False)
+        self.s3_dict = s3_dict
     
         if not self.s3_dict['client']:
             # Handling csv names and directories for the final forecast
             if not os.path.exists(f"forecasts/{args.site}/{args.target}/"):
-                os.makedirs(f"forecasts/{args.site}/{args.target}/")
+                raise ValueError("The forecast directory does not exist or is misnamed.")
 
     def make_forecasts(self):
         """
         This function fits a Darts model to the training_set
         """
+        main_df = pd.DataFrame()
         # Initializing the regression ensemble model
-        regression_ensemble = RegressionEnsembleModel(
-            forecasting_models=self.models,
-            regression_train_n_points=-1,
-            train_forecasting_models=False,
-            train_using_historical_forecasts=False,
-            regression_model=LinearRegressionModel(
-                lags_future_covariates=[0], 
-                likelihood="quantile", 
-                quantiles=[0.05, 0.5, 0.95]
-            )
-        )
-
-        # Need to account for models that don't use past covariates
-        self.scaler = Scaler()
-        self.scaler_cov = Scaler()
-        training_set = self.scaler.fit_transform(self.training_set)
-        covariates = self.scaler_cov.fit_transform(self.covs_train)
-
-        assert training_set.time_index[-1] == self.split_date, "There is a" +\
-         " misalignment between the training set and the specified validation split" +\
-         " date. Note that the validation split date is defined to include the last" +\
-         " date of the training set."
-        
-        regression_ensemble.fit(
-            training_set, 
-            past_covariates=covariates,
-        )
-
-        # Preparing input series and covariates for the predictions
-        predict_series = self.get_predict_set(
-                self.scaler,
-                self.hyperparams['input_chunk_length']
-        )
-        past_covariates = [
-                self.scaler_cov.transform(self.covariates) \
-                  for i in range(len(predict_series))
-        ]
-
-        predictions = regression_ensemble.predict( 
-            series=predict_series,
-            past_covariates=past_covariates,
-        )
-        for prediction in predictions:
-            prediction = self.scaler.inverse_transform(prediction)
-            csv_name = self.output_csv_name + "_" + \
-                           prediction.time_index[0].strftime('%Y_%m_%d.csv')
-            df = prediction.pd_dataframe(suppress_warnings=True)
-            if self.s3_dict['client']:
-                upload_df_to_s3(csv_name, df, self.s3_client)
+        for i, item in enumerate(self.model_list):
+            csv_path = f"forecasts/{self.site_id}/{self.target_variable}/{item[0]}/model_{item[1]}/{self.date}.csv"
+            if i == 0:
+                main_df = download_df_from_s3(csv_path, self.s3_dict)
             else:
-                df.to_csv(csv_name)
+                df = download_df_from_s3(csv_path, self.s3_dict)
+                main_df = pd.merge(main_df, df, on='datetime', how='inner')
 
-    def get_predict_set(self, scaler, input_chunk_length):
-            # Similar to get_validation_set, except here I want to create 
-            # a window that just has the data to use as an input, nothing to validate
-            # a prediction
-            interval = pd.Timedelta(days=self.forecast_horizon)
-            dates = pd.date_range(self.split_date, periods=12, freq=interval)
-            predict_set_list = []
-            for date in dates:
-                predict_set_list.append(
-                    scaler.transform(
-                        self.inputs.slice_n_points_before(
-                            date, 
-                            input_chunk_length
-                        )
-                    )
-                )
-            return predict_set_list
-    
-    def _preprocess_data(self, data_preprocessor, train_set=True):
-        """
-        Performs gap filling and processing of data into format that
-        Darts models will accept; train_set flag is to 
-        """
-        stitched_series_dict = data_preprocessor.sites_dict[self.site_id]
-
-        # If there was failure when filtering then we can't do preprocessing
-        if self.target_variable in \
-                data_preprocessor.site_missing_variables:
-            return "Cannot fit this target time series as no GP fit was performed."
-        inputs = stitched_series_dict[self.target_variable]
-
-        if self.covariates_names:
-            # And not using the covariates that did not yield GP fits beforehand
-            for null_variable in data_preprocessor.site_missing_variables:
-                if null_variable in self.covariates_names:
-                    self.covariates_names.remove(null_variable)
-    
-            # Initializing covariates list then concatenating in for loop
-            covariates = stitched_series_dict[self.covariates_names[0]]
-            for cov_var in self.covariates_names[1:]:
-                covariates = covariates.concatenate(stitched_series_dict[cov_var], 
-                                                              axis=1, 
-                                                              ignore_time_axis=True)
-            covariates = covariates.median()
-
-            covs_train, _ = (
-                covariates
-                .median()
-                .split_after(self.split_date)
-            )
-        else:
-            covs_train = None
-            covariates = None
-            
-        # Taking the median now to accomodate using doy covariates
-        training_set, validation_set = (
-            inputs
-            .median()
-            .split_after(self.split_date)
-        )
-
-        if train_set:
-            return training_set, covs_train
-        else:
-            return inputs.median(), covariates
+        import pdb; pdb.set_trace()
+            # Need to find out how to concatenate df
+        
