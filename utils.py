@@ -906,12 +906,18 @@ class NaiveEnsembleForecaster():
         # Initializing the regression ensemble model
         for i, item in enumerate(self.model_list):
             csv_path = f"forecasts/{self.site_id}/{self.target_variable}/{item[0]}/model_{item[1]}/{self.date}.csv"
-            if i == 0:
-                main_df = download_df_from_s3(csv_path, self.s3_dict)
-            else:
+            if self.s3_dict['client']:
                 df = download_df_from_s3(csv_path, self.s3_dict)
-                main_df = pd.merge(main_df, df, on='datetime', how='inner')
-
+            else:
+                df = pd.read_csv(csv_path)
+            if i == 0:
+                main_df = df.copy()
+            else:
+                main_df = pd.merge(main_df, df, on='datetime', how='inner', suffixes=('', f'_{i}'))
         import pdb; pdb.set_trace()
-            # Need to find out how to concatenate df
+        output_csv = f"forecasts/{self.site_id}/{self.target_variable}/NaiveEnsemble/{self.output_name}/{self.date}.csv"
+        if self.s3_dict['client']:
+            upload_df_to_s3(output_csv, main_df, self.s3_dict)
+        else:
+            main_df.to_csv(output_csv)
         
