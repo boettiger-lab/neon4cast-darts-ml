@@ -70,6 +70,10 @@ def establish_s3_connection(
     return s3
 
 def handle_nn_architecture(model_name):
+    '''
+    Returns a list of dictionaries that provide hyperparameters
+    relevant to neural network architecture for the different models used.
+    '''
     if model_name == 'RNN':
         nn_options = [{'hidden_dim': 25, 'n_rnn_layers': 1},
                       {'hidden_dim': 25, 'n_rnn_layers': 2},
@@ -367,7 +371,7 @@ class TimeSeriesPreprocessor():
         Returns a time series where the gaps have been filled in via
         Gaussian Process Filters and daily historical data
         """
-        # REXAMINE GP USAGE HERE
+        # Perform GP filtering for missing data from small gaps
         kernel = RBF()
         
         gpf_missing = GaussianProcessFilter(
@@ -377,8 +381,6 @@ class TimeSeriesPreprocessor():
         )
         
         stitched_series = {}
-    
-        # Filtering the TimeSeries
         try:
             filtered = gpf_missing.filter(
                 self.var_tseries_dict[var], 
@@ -396,11 +398,11 @@ class TimeSeriesPreprocessor():
         # yielding NaNs, which is certainly not elegant
         warnings.filterwarnings("ignore", category=RuntimeWarning)
 
-        # For these big gaps, I replace with samples centered on historical mean and std
+        # For these big gaps, replace with samples centered on historical mean and std
         for index, row in gap_series.iterrows():
             if row["gap_size"] > 4:
                 for date in pd.date_range(row["gap_start"], row["gap_end"]):
-                    # Finding the mean and std from the doy dictionary
+                    # Find the mean and std from the doy dictionary
                     # and avoiding leap year errors
                     try:
                         mean, std = self.doy_dict[var].loc[min(date.dayofyear, 365)]
@@ -642,7 +644,6 @@ class BaseForecaster():
         self.num_samples = num_samples
         self.seed = seed
         self.verbose = verbose
-        self.dropout = None
         self.targets_df = pd.read_csv(targets_csv)
         if model_hyperparameters == None:
             self.hyperparams = {"input_chunk_length" : 31}
@@ -767,7 +768,9 @@ class BaseForecaster():
         """
         print(self.hyperparams, self.model_likelihood)
 
-        # Stopping early
+        # Since we are training so many models, I'm electing
+        # to automatically stop training depending on validation loss.
+        # This is to combat overfitting to training data.
         my_stopper = EarlyStopping(
                 monitor="val_loss",
                 patience=10,
@@ -851,8 +854,7 @@ class BaseForecaster():
             if self.s3_dict['client']:
                 upload_df_to_s3(csv_name, df, self.s3_dict)
             else:
-                df.to_csv(csv_name)
-            
+                df.to_csv(csv_name)      
             
 
     def prepare_hyperparams(self, hyperparams_dict):
@@ -873,8 +875,6 @@ class BaseForecaster():
 
         return hyperparams_dict
 
-# Need to do this from scratch
-# where you take the forecast csv and aggregate
 class NaiveEnsembleForecaster():
     def __init__(self,
                  model_list: Optional[list] = None,
@@ -903,18 +903,20 @@ class NaiveEnsembleForecaster():
         This function fits a Darts model to the training_set
         """
         main_df = pd.DataFrame()
-        # Initializing the regression ensemble model
         for i, item in enumerate(self.model_list):
+            # Downloading the csv from models depending on remote or local loc
             csv_path = f"forecasts/{self.site_id}/{self.target_variable}/{item[0]}/model_{item[1]}/{self.date}.csv"
             if self.s3_dict['client']:
                 df = download_df_from_s3(csv_path, self.s3_dict)
             else:
                 df = pd.read_csv(csv_path)
+            # Aggregating forecasts into main_df
             if i == 0:
                 main_df = df.copy()
             else:
                 main_df = pd.merge(main_df, df, on='datetime', how='inner', suffixes=('', f'_{i}'))
-        import pdb; pdb.set_trace()
+
+        # Saving the forecast locally or in specified bucket
         output_csv = f"forecasts/{self.site_id}/{self.target_variable}/NaiveEnsemble/{self.output_name}/{self.date}.csv"
         if self.s3_dict['client']:
             upload_df_to_s3(output_csv, main_df, self.s3_dict)
