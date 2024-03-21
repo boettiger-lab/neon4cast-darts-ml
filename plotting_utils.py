@@ -195,7 +195,7 @@ def modify_score_dict(csv,
                       site_id, 
                       suffix, 
                       score_dict,
-                      s3_dict={'client': None, 'bucket': None}):
+                      s3_dict={'client': None, 'bucket': None},):
     '''
     Returns a dictionary with the CRPS and RMSE scores for the ML model (whose forecast
     is provided in `csv`) as well as the historical and naive persistence model.
@@ -333,7 +333,7 @@ def modify_score_dict(csv,
     
     return score_dict
 
-def score_improvement_bysite(model, targets_df, target_variable, suffix="", s3_dict={'client': None, 'bucket': None}):
+def score_improvement_bysite(model, id, targets_df, target_variable, suffix="", s3_dict={'client': None, 'bucket': None}):
     '''
     This function collects the forecast scores for the specifed model and target variable.
     Then it returns a dataframe with columns for the difference in CRPS and RMSE
@@ -347,14 +347,14 @@ def score_improvement_bysite(model, targets_df, target_variable, suffix="", s3_d
         if s3_dict['client']:
             try:
                 csv_list = ls_bucket(
-                    f'forecasts/{site_id}/{target_variable}/{model}/', 
+                    f'forecasts/{site_id}/{target_variable}/{model}/model_{id}/', 
                     s3_dict, 
                     plotting=True,
                 )
             except:
                 csv_list = []
         else:
-            glob_prefix = f'forecasts/{site_id}/{target_variable}/{model}/*.csv'
+            glob_prefix = f'forecasts/{site_id}/{target_variable}/{model}/model_{id}/*.csv'
             csv_list = sorted(glob.glob(glob_prefix))
         for csv in csv_list:
             site_dict = modify_score_dict(
@@ -364,7 +364,7 @@ def score_improvement_bysite(model, targets_df, target_variable, suffix="", s3_d
                 site_id, 
                 suffix, 
                 site_dict,
-                s3_dict=s3_dict
+                s3_dict=s3_dict,
             )
         score_dict[site_id] = site_dict
 
@@ -471,7 +471,7 @@ def score_improvement_bysite(model, targets_df, target_variable, suffix="", s3_d
         rmse_merged['value_historical'] - rmse_merged['value_naive']
     )
 
-    # Deleting unnecessary columns
+    # Delete unnecessary columns
     rmse_merged = rmse_merged.drop(
         rmse_merged.filter(like='model').columns, 
         axis=1
@@ -503,6 +503,8 @@ def score_improvement_bysite(model, targets_df, target_variable, suffix="", s3_d
     )
     merged_df['model'] = model
     intra_merged['model'] = model
+    merged_df['model_id'] = id
+    intra_merged['model_id'] = id
 
     return merged_df, intra_merged
     
@@ -670,7 +672,7 @@ def plot_improvement_bysite(score_df, metadata_df, title_name, historical=True):
          else 'difference_naive_ml_rmse'
     )
 
-    # Combining df's to include metadata
+    # Combine df's to include metadata
     df = pd.merge(
         score_df, 
         metadata_df, 
