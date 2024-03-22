@@ -1,10 +1,13 @@
 from utils import (
     BaseForecaster, 
-    ResidualForecaster,
     TimeSeriesPreprocessor,
     crps,
     HistoricalForecaster,
     NaivePersistenceForecaster,
+)
+from s3_utils import (
+    ls_bucket,
+    download_df_from_s3,
 )
 import seaborn as sns
 import pandas as pd
@@ -186,15 +189,25 @@ def make_df_from_score_dict(score_dict):
     
     return df
 
-def modify_score_dict(csv, targets_df, target_variable, site_id, suffix, score_dict):
+def modify_score_dict(csv,
+                      targets_df, 
+                      target_variable, 
+                      site_id, 
+                      suffix, 
+                      score_dict,
+                      s3_dict={'client': None, 'bucket': None},):
     '''
     Returns a dictionary with the CRPS and RMSE scores for the ML model (whose forecast
     is provided in `csv`) as well as the historical and naive persistence model.
     '''
     try:
-        forecast_df = pd.read_csv(csv)
+        if s3_dict['client']:
+            forecast_df = download_df_from_s3(csv, s3_dict)
+        else:
+            forecast_df = pd.read_csv(csv)
     except:
         return score_dict
+
     forecast_df["datetime"] = pd.to_datetime(forecast_df["datetime"])
     times = pd.DatetimeIndex(forecast_df["datetime"])
     forecast_df = forecast_df.set_index("datetime")
@@ -221,12 +234,12 @@ def modify_score_dict(csv, targets_df, target_variable, site_id, suffix, score_d
     except:
         return score_dict
 
-    # Initialize in case site id is empty at the site
+    # Initialize a score dict in case site id is empty at the site
     time_str = times[0].strftime('%Y_%m_%d')
     if time_str not in score_dict:
         score_dict[time_str] = {}
         
-    # Computing CRPS and recording
+    # Computing CRPS and RMSE
     filtered_validation_ts = TimeSeries.from_times_and_values(
         filtered_validation_series.index, 
         filtered_validation_series.values, 
@@ -257,8 +270,8 @@ def modify_score_dict(csv, targets_df, target_variable, site_id, suffix, score_d
         'validation_split_date': str(times[0])[:10],
         'forecast_horizon': forecast_horizon,
     }
-    
 
+    # N.b. that index of 0 is for historical and 1 persistence
     null_models = [
         HistoricalForecaster(**input_dict), 
         NaivePersistenceForecaster(**input_dict)
@@ -320,7 +333,7 @@ def modify_score_dict(csv, targets_df, target_variable, site_id, suffix, score_d
     
     return score_dict
 
-def score_improvement_bysite(model, targets_df, target_variable, suffix=""):
+def score_improvement_bysite(model, id, targets_df, target_variable, suffix="", s3_dict={'client': None, 'bucket': None}):
     '''
     This function collects the forecast scores for the specifed model and target variable.
     Then it returns a dataframe with columns for the difference in CRPS and RMSE
@@ -330,8 +343,19 @@ def score_improvement_bysite(model, targets_df, target_variable, suffix=""):
     # For each site, score CRPS and RMSE individually and add to score_dict
     for site_id in targets_df.site_id.unique():
         site_dict = {}
-        glob_prefix = f'forecasts/{site_id}/{target_variable}/{model}_{suffix}/forecast*'
-        csv_list = sorted(glob.glob(glob_prefix))
+        # Handling cases for if user wants data storage locally or remote
+        if s3_dict['client']:
+            try:
+                csv_list = ls_bucket(
+                    f'forecasts/{site_id}/{target_variable}/{model}/model_{id}/', 
+                    s3_dict, 
+                    plotting=True,
+                )
+            except:
+                csv_list = []
+        else:
+            glob_prefix = f'forecasts/{site_id}/{target_variable}/{model}/model_{id}/*.csv'
+            csv_list = sorted(glob.glob(glob_prefix))
         for csv in csv_list:
             site_dict = modify_score_dict(
                 csv, 
@@ -339,7 +363,8 @@ def score_improvement_bysite(model, targets_df, target_variable, suffix=""):
                 target_variable, 
                 site_id, 
                 suffix, 
-                site_dict
+                site_dict,
+                s3_dict=s3_dict,
             )
         score_dict[site_id] = site_dict
 
@@ -358,23 +383,46 @@ def score_improvement_bysite(model, targets_df, target_variable, suffix=""):
     naive_df = intra_df[intra_df['model'] == 'naive']
     
     # Merging forecast and historical data on site_id, date, and t
-    intra_merged_crps = pd.merge(forecast_df_crps, historical_df, on=['site_id', 'date', 't'], suffixes=('_forecast', '_historical'))
-    intra_merged_ae = pd.merge(forecast_df_ae, naive_df, on=['site_id', 'date', 't'], suffixes=('_forecast', '_naive'))
+    intra_merged_crps = pd.merge(
+        forecast_df_crps, 
+        historical_df, 
+        on=['site_id', 'date', 't'], 
+        suffixes=('_forecast', '_historical')
+    )
+    intra_merged_ae = pd.merge(
+        forecast_df_ae, 
+        naive_df, 
+        on=['site_id', 'date', 't'], 
+        suffixes=('_forecast', '_naive')
+    )
 
     # Finding the difference in absolute error between the models of interest
     intra_merged_crps['value_difference'] = intra_merged_crps['value_forecast'] - intra_merged_crps['value_historical']
     intra_merged_ae['value_difference'] = intra_merged_ae['value_forecast'] - intra_merged_ae['value_naive']
-    intra_merged_crps.rename(columns={'metric_forecast': 'metric'}, inplace=True)
-    intra_merged_ae.rename(columns={'metric_forecast': 'metric'}, inplace=True)
+    intra_merged_crps.rename(
+        columns={'metric_forecast': 'metric'}, 
+        inplace=True
+    )
+    intra_merged_ae.rename(
+        columns={'metric_forecast': 'metric'}, 
+        inplace=True
+    )
     # Then tidying up and Merging
     intra_merged_crps = intra_merged_crps[['site_id', 'date', 't', 'metric', 'value_difference']]
     intra_merged_ae = intra_merged_ae[['site_id', 'date', 't', 'metric', 'value_difference']]
-    intra_merged = pd.merge(intra_merged_crps, intra_merged_ae, on=['site_id', 'date', 't'], suffixes=('_crps', '_ae'))
+    intra_merged = pd.merge(
+        intra_merged_crps, 
+        intra_merged_ae, 
+        on=['site_id', 'date', 't'], 
+        suffixes=('_crps', '_ae')
+    )
     intra_merged = intra_merged[['site_id', 'date', 't', 'value_difference_crps', 'value_difference_ae']]
 
     # Now, back to the inter-forecast window comparison
     # Using the mean CRPS score over the forecast horizon
-    inter_df = inter_df.groupby(['site_id', 'date', 'metric', 'model']).mean().reset_index()
+    inter_df = inter_df.groupby(
+        ['site_id', 'date', 'metric', 'model']
+    ).mean().reset_index()
 
     # Creating a CRPS and RMSE dataframe separately which is definitely
     # not the most elegant solution here
@@ -423,22 +471,44 @@ def score_improvement_bysite(model, targets_df, target_variable, suffix=""):
         rmse_merged['value_historical'] - rmse_merged['value_naive']
     )
 
-    # Deleting unnecessary columns
-    rmse_merged = rmse_merged.drop(rmse_merged.filter(like='model').columns, axis=1)
-    rmse_merged = rmse_merged.drop(rmse_merged.filter(like='value').columns, axis=1)
-    crps_merged = crps_merged.drop(crps_merged.filter(like='model').columns, axis=1)
-    crps_merged = crps_merged.drop(crps_merged.filter(like='value').columns, axis=1)
+    # Delete unnecessary columns
+    rmse_merged = rmse_merged.drop(
+        rmse_merged.filter(like='model').columns, 
+        axis=1
+    )
+    rmse_merged = rmse_merged.drop(
+        rmse_merged.filter(like='value').columns, 
+        axis=1
+    )
+    crps_merged = crps_merged.drop(
+        crps_merged.filter(like='model').columns, 
+        axis=1
+    )
+    crps_merged = crps_merged.drop(
+        crps_merged.filter(like='value').columns, 
+        axis=1
+    )
 
     # Joining the two df's along site id and date then adding a combined improvement column
     # for comparison against the climatology model
-    merged_df = pd.merge(crps_merged, rmse_merged, on=['site_id', 'date'], how='inner')
-    merged_df = merged_df.drop(merged_df.filter(like='metric').columns, axis=1)
+    merged_df = pd.merge(
+        crps_merged, 
+        rmse_merged, 
+        on=['site_id', 'date'], 
+        how='inner'
+    )
+    merged_df = merged_df.drop(
+        merged_df.filter(like='metric').columns, 
+        axis=1
+    )
     merged_df['model'] = model
     intra_merged['model'] = model
+    merged_df['model_id'] = id
+    intra_merged['model_id'] = id
 
     return merged_df, intra_merged
     
-def plot_forecast(date, targets_df, site_id, target_variable, model_dir, plot_name=None):
+def plot_forecast(date, targets_df, site_id, target_variable, model, id_list, s3_dict={'client': None, 'bucket': None}, plot_name=None):
     '''
     Returns a plot of the forecast specified by the date and model directory
     in addition to the observed values, the climatology forecast and the naive persistence
@@ -446,16 +516,25 @@ def plot_forecast(date, targets_df, site_id, target_variable, model_dir, plot_na
     '''
     cmap = mpl.colormaps["tab10"]
     colors = cmap.colors
-    # Loading the forecast csv and creating a time series
-    csv_name = f"forecasts/{site_id}/{target_variable}/{model_dir}/forecast_{date}.csv"
-    df = pd.read_csv(csv_name)
-    times = pd.to_datetime(df["datetime"])
-    times = pd.DatetimeIndex(times)
-    values = df.loc[:, df.columns!="datetime"].to_numpy().reshape((len(times), 1, -1))
-    model_forecast = TimeSeries.from_times_and_values(times, 
-                                                      values, 
-                                                      fill_missing_dates=True, freq="D")
-    model_forecast.plot(label=f"{model_dir}", color=colors[0])
+    dfs = []
+    for i, id in enumerate(id_list):
+        # Loading the forecast csv and creating a time series
+        if s3_dict['client']:
+            df = download_df_from_s3(
+                f'forecasts/{site_id}/{target_variable}/{model}/model_{id}/{date}.csv', 
+                s3_dict
+            )
+        else: 
+            csv_name = f"forecasts/{site_id}/{target_variable}/{model}/model_{id}/{date}.csv'"
+            df = pd.read_csv(csv_name)
+    
+        times = pd.to_datetime(df["datetime"])
+        times = pd.DatetimeIndex(times)
+        values = df.loc[:, df.columns!="datetime"].to_numpy().reshape((len(times), 1, -1))
+        model_forecast = TimeSeries.from_times_and_values(times, 
+                                                          values, 
+                                                          fill_missing_dates=True, freq="D")
+        model_forecast.plot(label=f"{model}", color=colors[0])
 
     # Getting the validation series directly from the targets csv
     date = model_forecast.time_index[0]
@@ -494,7 +573,17 @@ def plot_forecast(date, targets_df, site_id, target_variable, model_dir, plot_na
     
     x = plt.xlabel("date")
     y = plt.ylabel(target_variable)
+    # Creating a legend and then removing duplicates
     ax = plt.gca()
+    handles, labels = plt.gca().get_legend_handles_labels()
+    unique_labels = []
+    unique_handles = []
+    for i, label in enumerate(labels):
+        if label not in unique_labels:
+            unique_labels.append(label)
+            unique_handles.append(handles[i])
+    
+    plt.legend(unique_handles, unique_labels)
     ax.spines["left"].set_visible(True)
     ax.spines["bottom"].set_visible(True)
     plt.grid(False)
@@ -505,25 +594,34 @@ def plot_forecast(date, targets_df, site_id, target_variable, model_dir, plot_na
             os.makedirs(f"plots/{site_id}/{target_variable}/")
         plt.savefig(f"plots/{site_id}/{target_variable}/{plot_name}")
 
-def plot_crps_bydate(glob_prefix, targets_df, site_id, target_variable, suffix="", plot_name=None):
+def plot_crps_bydate(model, model_id, targets_df, site_id, target_variable, s3_dict={'client': None, 'bucket': None}, suffix="", plot_name=None):
     '''
     Returns a strip plot of the crps scores for the inputted ML model and the climatology model at
     each forecast window
     '''
     plt.figure(figsize=(12, 8))
     score_dict = {}
-    
-    csv_list = sorted(glob.glob(glob_prefix))
+    csv_list = []
+    glob_prefix = f'forecasts/{site_id}/{target_variable}/{model}/model_{model_id}/'
+    if s3_dict['client']:
+        csv_list = ls_bucket(
+            glob_prefix,
+            s3_dict,
+        )
+        csv_list = [glob_prefix + csv_file for csv_file in csv_list]
+    else:
+        csv_list = sorted(glob.glob(glob_prefix))
     
     for csv in csv_list:
         score_dict = modify_score_dict(
-            csv, 
-            targets_df, 
-            target_variable, 
-            site_id, 
-            suffix, 
-            score_dict
-        )
+                csv, 
+                targets_df, 
+                target_variable, 
+                site_id, 
+                suffix, 
+                score_dict,
+                s3_dict,
+            )
 
     score_df = pd.DataFrame([(site_id, data_dict['crps_forecast'][i], data_dict['crps_historical'][i]) \
                                  for site_id, data_dict in score_dict.items() \
@@ -574,7 +672,7 @@ def plot_improvement_bysite(score_df, metadata_df, title_name, historical=True):
          else 'difference_naive_ml_rmse'
     )
 
-    # Combining df's to include metadata
+    # Combine df's to include metadata
     df = pd.merge(
         score_df, 
         metadata_df, 
