@@ -21,7 +21,6 @@ from darts.dataprocessing.transformers import Scaler
 from datetime import datetime, timedelta
 import CRPS.CRPS as forecastscore
 import os
-import optuna
 import argparse
 import copy
 import numpy as np
@@ -62,10 +61,10 @@ def establish_s3_connection(
                 's3',
                 endpoint_url=endpoint,
             )
-        print(f'Using {endpoint} for data storage and access.')
+        print("\n", f'Using {endpoint} for data storage and access.')
     except:
         s3 = None
-        print('Using local for data storage and access.')
+        print("\n", 'Using local for data storage and access.')
 
     return s3
 
@@ -620,6 +619,7 @@ class BaseForecaster():
                  num_samples: Optional[int] = 500,
                  seed: Optional[int] = 0,
                  verbose: Optional[bool] = False,
+                 log_tensorboard: Optional[bool] = False,
                  targets_csv: Optional[str] = "targets.csv.gz",
                  s3_dict: Optional[dict] = {'client': None, 'bucket': None}
                  ):
@@ -644,6 +644,7 @@ class BaseForecaster():
         self.num_samples = num_samples
         self.seed = seed
         self.verbose = verbose
+        self.log_tensorboard = log_tensorboard
         self.targets_df = pd.read_csv(targets_csv)
         if model_hyperparameters == None:
             self.hyperparams = {"input_chunk_length" : 31}
@@ -766,21 +767,21 @@ class BaseForecaster():
         """
         This function fits a Darts model to the training_set
         """
-        print(self.hyperparams, self.model_likelihood)
-
         # Since we are training so many models, I'm electing
         # to automatically stop training depending on validation loss.
         # This is to combat overfitting to training data.
         my_stopper = EarlyStopping(
                 monitor="val_loss",
-                patience=10,
+                patience=5,
                 min_delta=0.005,
                 mode='min',
         )
-        pl_trainer_kwargs={"callbacks": [my_stopper]}
+        pl_trainer_kwargs={"callbacks": [my_stopper],
+                           "log_every_n_steps": 1}
         
         # Need to handle lags and time axis encoders
         self.hyperparams = self.prepare_hyperparams(self.hyperparams)
+        print("\n", self.hyperparams)
 
         self.model = self.model_(
             **self.hyperparams,
@@ -788,11 +789,12 @@ class BaseForecaster():
             **self.model_likelihood,
             random_state=self.seed,
             pl_trainer_kwargs=pl_trainer_kwargs,
+            log_tensorboard=self.log_tensorboard,
         )
         
         extras = {
             "verbose": self.verbose,
-            "epochs": self.epochs
+            "epochs": self.epochs,
         }
         predict_kws = {
             "n": self.forecast_horizon,
@@ -846,6 +848,7 @@ class BaseForecaster():
             series=predict_series, 
             **predict_kws
         )
+        # Transform and save each prediction as a csv
         for prediction in predictions:
             prediction = self.scaler.inverse_transform(prediction)
             csv_name = 'forecasts/' + self.output_name + \
