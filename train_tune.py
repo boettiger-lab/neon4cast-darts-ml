@@ -49,6 +49,8 @@ parser.add_argument("--endpoint", default='https://minio.carlboettiger.info', ty
                     help="S3 Endpoint.")
 parser.add_argument("--accesskey", default='credentials.json', type=str,
                     help="JSON file with access key for bucket (if required).")
+parser.add_argument("--tblog", default=False, action="store_true",
+                    help="Flag to make tensorboard logs or not.")
 args = parser.parse_args()
 
 # For non-quantile regression, add 2 CL flags, one to store true another
@@ -63,7 +65,7 @@ if __name__ == "__main__":
     )
     s3_dict = {'client': s3_client, 'bucket': args.bucket}
     # Selecting the device
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+    os.environ["CUDA_VISIBLE_DEVICES"] = f"{args.device}"
     
     
     # Loading hyperparameters
@@ -121,6 +123,7 @@ if __name__ == "__main__":
             model_likelihood=model_likelihood,
             site_id=args.site,
             s3_dict=s3_dict,
+            log_tensorboard=args.tblog,
             **extras,
         )
         
