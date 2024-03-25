@@ -80,11 +80,11 @@ def handle_nn_architecture(model_name):
                       {'hidden_dim': 25, 'n_rnn_layers': 4},
                       {'hidden_dim': 100, 'n_rnn_layers': 1}]
     elif model_name == 'TFT':
-        nn_options = [{'hidden_size': 16, 'n_rnn_layers': 1},
-                      {'hidden_size': 16, 'n_rnn_layers': 2},
-                      {'hidden_size': 16, 'n_rnn_layers': 3},
-                      {'hidden_size': 16, 'n_rnn_layers': 4},
-                      {'hidden_size': 64, 'n_rnn_layers': 1}]
+        nn_options = [{'hidden_size': 16, 'lstm_layers': 1},
+                      {'hidden_size': 16, 'lstm_layers': 2},
+                      {'hidden_size': 16, 'lstm_layers': 3},
+                      {'hidden_size': 16, 'lstm_layers': 4},
+                      {'hidden_size': 64, 'lstm_layers': 1}]
     elif model_name == 'BlockRNN':
         nn_options = [{'hidden_dim': 25, 'n_rnn_layers': 1},
                       {'hidden_dim': 25, 'n_rnn_layers': 2},
@@ -119,6 +119,10 @@ def handle_nn_architecture(model_name):
                       {'num_layers': 2},
                       {'num_layers': 3},
                       {'num_layers': 4}]
+    elif model_name == 'NLinear' or model_name == 'DLinear':
+        nn_options = [{'const_init': True, 'shared_weights': False, 'use_static_covariates': False},
+                      {'const_init': False, 'shared_weights': False, 'use_static_covariates': False},
+                     ]
 
     return nn_options
     

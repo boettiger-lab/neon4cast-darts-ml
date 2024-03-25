@@ -16,3 +16,7 @@ for site in "${sites[@]}"; do
         fi
     done
 done
+
+if [ ! -d "logs/tests/" ]; then
+    mkdir -p "logs/tests/"
+fi
