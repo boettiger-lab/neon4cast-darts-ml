@@ -408,8 +408,8 @@ def score_improvement_bysite(model, id, targets_df, target_variable, suffix="", 
         inplace=True
     )
     # Then tidying up and Merging
-    intra_merged_crps = intra_merged_crps[['site_id', 'date', 't', 'metric', 'value_difference']]
-    intra_merged_ae = intra_merged_ae[['site_id', 'date', 't', 'metric', 'value_difference']]
+    intra_merged_crps = intra_merged_crps[['site_id', 'date', 't', 'metric', 'value_skill']]
+    intra_merged_ae = intra_merged_ae[['site_id', 'date', 't', 'metric', 'value_skill']]
     intra_merged = pd.merge(
         intra_merged_crps, 
         intra_merged_ae, 
@@ -699,9 +699,9 @@ def plot_improvement_bysite(score_df, metadata_df, title_name, historical=True):
     plt.grid(False)
     plt.axhline(y=0, color='black', linestyle='dashed', linewidth=1)
     if historical:
-        plt.ylabel("CRPSS (Relative to Climatology)")
+        plt.ylabel("CRPSS")
     else:
-        plt.ylabel("RMSE-SS (Relative to Naive Persistence)")
+        plt.ylabel("RMSE-SS")
     ax = plt.gca()
     ax.spines["left"].set_visible(True)
     ax.spines["bottom"].set_visible(True)
@@ -733,9 +733,9 @@ def plot_global_percentages(df_, title_name, historical=True):
     plt.grid(False)
     plt.axhline(y=0, color='black', linestyle='dashed', linewidth=1)
     if historical:
-        plt.ylabel("CRPSS (Relative to Climatology)")
+        plt.ylabel("CRPSS")
     else:
-        plt.ylabel("RMSE-SS (Relative to Naive Persistence)")
+        plt.ylabel("RMSE-SS")
     ax = plt.gca()
     ax.spines["left"].set_visible(True)
     ax.spines["bottom"].set_visible(True)
@@ -779,9 +779,9 @@ def plot_site_type_percentages_global(df_, metadata_df, title_name, historical=T
     plt.grid(False)
     plt.axhline(y=0, color='black', linestyle='dashed', linewidth=1)
     if historical:
-        plt.ylabel("CRPSS (Relative to Climatology)")
+        plt.ylabel("CRPSS")
     else:
-        plt.ylabel("RMSE-SS (Relative to Naive Persistence)")
+        plt.ylabel("RMSE-SS")
     ax = plt.gca()
     ax.spines["left"].set_visible(True)
     ax.spines["bottom"].set_visible(True)
@@ -827,9 +827,9 @@ def plot_site_type_percentages_bymodel(df_, metadata_df, title_name, historical=
     plt.grid(False)
     plt.axhline(y=0, color='black', linestyle='dashed', linewidth=1)
     if historical:
-        plt.ylabel("CRPSS (Relative to Climatology)")
+        plt.ylabel("CRPSS")
     else:
-        plt.ylabel("RMSE-SS (Relative to Naive Persistence)")
+        plt.ylabel("RMSE-SS")
     ax = plt.gca()
     ax.spines["left"].set_visible(True)
     ax.spines["bottom"].set_visible(True)
@@ -878,9 +878,9 @@ def plot_window_and_sitetype_performance(model_df, metadata_df, title_name, hist
     plt.grid(False)
     plt.axhline(y=0, color='black', linestyle='dashed', linewidth=1)
     if historical:
-        plt.ylabel("CRPSS (Relative to Climatology)")
+        plt.ylabel("CRPSS")
     else:
-        plt.ylabel("RMSE-SS (Relative to Naive Persistence)")
+        plt.ylabel("RMSE-SS")
     ax = plt.gca()
     ax.spines["left"].set_visible(True)
     ax.spines["bottom"].set_visible(True)
@@ -931,9 +931,9 @@ def plot_region_percentages(df_, metadata_df, title_name, historical=True):
     plt.grid(False)
     plt.axhline(y=0, color='black', linestyle='dashed', linewidth=1)
     if historical:
-        plt.ylabel("CRPSS (Relative to Climatology)")
+        plt.ylabel("CRPSS")
     else:
-        plt.ylabel("RMSE-SS (Relative to Naive Persistence)")
+        plt.ylabel("RMSE-SS")
     ax = plt.gca()
     ax.spines["left"].set_visible(True)
     ax.spines["bottom"].set_visible(True)
@@ -960,15 +960,6 @@ def plot_crps_over_time_agg(intra_df, title_name, historical=True):
     # Rename the columns for better clarity
     summary_df.columns = ['t', '5th_percentile', '50th_percentile', '95th_percentile']
     
-    # Plot shaded regions for percentiles
-    plt.fill_between(
-        summary_df['t'],
-        summary_df['5th_percentile'],
-        summary_df['95th_percentile'],
-        alpha=0.2,
-        color='#1f77b4',
-    )
-    
     # Plot the median line separately to avoid shading it
     sns.lineplot(
         data=summary_df,
@@ -976,6 +967,7 @@ def plot_crps_over_time_agg(intra_df, title_name, historical=True):
         y='50th_percentile',
         legend=False,
         color='#1f77b4',
+        linewidth=2,
     )
     
     # Customize plot appearance
@@ -986,8 +978,8 @@ def plot_crps_over_time_agg(intra_df, title_name, historical=True):
     plt.axhline(y=0, color='black', linestyle='dashed', linewidth=1)
     plt.legend(labels=['ML Model Aggregate'])
     if metric == 'ae':
-        plt.ylabel("AbsErr-SS (Relative to Naive Persistence)")
+        plt.ylabel("AbsErr-SS")
     elif metric == 'crps':
-        plt.ylabel("CRPSS (Relative to Climatology)")
+        plt.ylabel("CRPSS")
     plt.title(title_name)
     plt.show()
