@@ -55,6 +55,12 @@ def generate_metadata_df():
 
     return metadata
 
+def save_fig(plt, png_name):
+    if png_name:
+        if not os.path.exists('plots/'):
+            os.makedirs('plots/')
+        plt.savefig(f'plots/{png_name}.png')
+
 def get_validation_series(targets_df, site_id, target_variable, date, forecast_horizon):
     '''
     Returns a TimeSeries of the forecast window from `targets_df`
@@ -396,7 +402,7 @@ def score_improvement_bysite(model, id, targets_df, target_variable, suffix="", 
         suffixes=('_forecast', '_naive')
     )
 
-    # Finding the difference in absolute error between the models of interest
+    # Finding the skill score
     intra_merged_crps['value_skill'] = 1 - (intra_merged_crps['value_forecast'] / intra_merged_crps['value_historical'])
     intra_merged_ae['value_skill'] = 1 - (intra_merged_ae['value_forecast'] / intra_merged_ae['value_naive'])
     intra_merged_crps.rename(
@@ -508,7 +514,7 @@ def score_improvement_bysite(model, id, targets_df, target_variable, suffix="", 
 
     return merged_df, intra_merged
     
-def plot_forecast(date, targets_df, site_id, target_variable, model, id_list, s3_dict={'client': None, 'bucket': None}, plot_name=None):
+def plot_forecast(date, targets_df, site_id, target_variable, model, id_list, s3_dict={'client': None, 'bucket': None}, png_name=None):
     '''
     Returns a plot of the forecast specified by the date and model directory
     in addition to the observed values, the climatology forecast and the naive persistence
@@ -589,12 +595,10 @@ def plot_forecast(date, targets_df, site_id, target_variable, model, id_list, s3
     plt.grid(False)
 
     # Saving the plot if desired
-    if plot_name != None:
-        if not os.path.exists(f"plots/{site_id}/{target_variable}/"):
-            os.makedirs(f"plots/{site_id}/{target_variable}/")
-        plt.savefig(f"plots/{site_id}/{target_variable}/{plot_name}")
+    if png_name:
+        save_fig(plt, png_name)
 
-def plot_crps_bydate(model, model_id, targets_df, site_id, target_variable, s3_dict={'client': None, 'bucket': None}, suffix="", plot_name=None):
+def plot_crps_bydate(model, model_id, targets_df, site_id, target_variable, s3_dict={'client': None, 'bucket': None}, suffix="", png_name=None):
     '''
     Returns a strip plot of the crps scores for the inputted ML model and the climatology model at
     each forecast window
@@ -655,12 +659,10 @@ def plot_crps_bydate(model, model_id, targets_df, site_id, target_variable, s3_d
     plt.title(f'{target_variable} @ {site_id}')
     
     # Saving the plot if desired
-    if plot_name != None:
-        if not os.path.exists(f"plots/{site_id}/{target_variable}/"):
-            os.makedirs(f"plots/{site_id}/{target_variable}/")
-        plt.savefig(f"plots/{site_id}/{target_variable}/{plot_name}")
+    if png_name:
+        save_fig(plt, png_name)
 
-def plot_improvement_bysite(score_df, metadata_df, title_name, historical=True):
+def plot_improvement_bysite(score_df, metadata_df, title_name, historical=True, png_name=None):
     '''
     Returns a plot of the scoring metric difference vs. the site id;
     site type is encoded by color.
@@ -712,7 +714,11 @@ def plot_improvement_bysite(score_df, metadata_df, title_name, historical=True):
     plt.tight_layout()
     plt.title(title_name)
 
-def plot_global_percentages(df_, title_name, historical=True):
+    # Saving the plot if desired
+    if png_name:
+        save_fig(plt, png_name)
+
+def plot_global_percentages(df_, title_name, historical=True, png_name=None):
     '''
     Returns a plot of the scoring metric difference vs. ML model type
     '''
@@ -743,7 +749,12 @@ def plot_global_percentages(df_, title_name, historical=True):
     plt.legend(labels=[])
     plt.title(title_name)
 
-def plot_site_type_percentages_global(df_, metadata_df, title_name, historical=True):
+    # Saving the plot if desired
+    if png_name:
+        save_fig(plt, png_name)
+
+
+def plot_site_type_percentages_global(df_, metadata_df, title_name, historical=True, png_name=None):
     '''
     Returns a plot of the scoring metric difference vs. water body type.
     '''
@@ -789,7 +800,11 @@ def plot_site_type_percentages_global(df_, metadata_df, title_name, historical=T
     plt.legend(labels=[])
     plt.title(title_name)
 
-def plot_site_type_percentages_bymodel(df_, metadata_df, title_name, historical=True):
+    # Saving the plot if desired
+    if png_name:
+        save_fig(plt, png_name)
+
+def plot_site_type_percentages_bymodel(df_, metadata_df, title_name, historical=True, png_name=None):
     '''
     Returns a plot of the scoring metric difference vs. model type;
     site type is encoded by color
@@ -840,7 +855,11 @@ def plot_site_type_percentages_bymodel(df_, metadata_df, title_name, historical=
     plt.tight_layout()
     plt.title(title_name)
 
-def plot_window_and_sitetype_performance(model_df, metadata_df, title_name, historical=True):
+    # Saving the plot if desired
+    if png_name:
+        save_fig(plt, png_name)
+
+def plot_window_and_sitetype_performance(model_df, metadata_df, title_name, historical=True, png_name=None):
     '''
     Returns a plot of the difference in scoring metric vs. forecast windows;
     site type is encoded by color
@@ -893,7 +912,11 @@ def plot_window_and_sitetype_performance(model_df, metadata_df, title_name, hist
     plt.tight_layout()
     plt.title(title_name)
 
-def plot_region_percentages(df_, metadata_df, title_name, historical=True):
+    # Saving the plot if desired
+    if png_name:
+        save_fig(plt, png_name)
+
+def plot_region_percentages(df_, metadata_df, title_name, historical=True, png_name=None):
     '''
     Returns a plot of the difference in scoring metric vs. the geographical regions;
     site type is encoded by color
@@ -946,7 +969,11 @@ def plot_region_percentages(df_, metadata_df, title_name, historical=True):
     plt.tight_layout()
     plt.title(title_name)
 
-def plot_crps_over_time_agg(intra_df, title_name, historical=True):
+    # Saving the plot if desired
+    if png_name:
+        save_fig(plt, png_name)
+
+def plot_crps_over_time_agg(intra_df, title_name, historical=True, png_name=None):
     plt.figure(figsize=(12, 8))
     if historical:
         metric = 'crps'
@@ -983,3 +1010,7 @@ def plot_crps_over_time_agg(intra_df, title_name, historical=True):
         plt.ylabel("CRPSS")
     plt.title(title_name)
     plt.show()
+
+    # Saving the plot if desired
+    if png_name:
+        save_fig(plt, png_name)
