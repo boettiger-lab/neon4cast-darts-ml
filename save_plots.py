@@ -22,6 +22,9 @@ from s3_utils import (
 import warnings
 import os
 import argparse
+import time
+
+start_ = time.time()
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--bucket", default='shared-neon4cast-darts', type=str,
@@ -78,93 +81,79 @@ for target_variable in target_variables:
                 [model, int(df[df['model'] == model]['model_id'].unique())] for model in model_names
             ]
 
-# 
+
 for target_variable in target_variables:
     # These plots incorporate forecasts from all models
     plot_crps_over_time_agg(
         best_performers_dfs[target_variable]['intra'], 
-        target_variable,
         png_name=f'intra_historical_{target_variable}',
     )
     plot_crps_over_time_agg(
         best_performers_dfs[target_variable]['intra'], 
-        target_variable,
         historical=False,
         png_name=f'intra_naive_{target_variable}',
     )
     plot_global_percentages(
-        best_performers_dfs[target_variable]['inter'], 
-        f'Global Performance -- {target_variable}',
+        best_performers_dfs[target_variable]['inter'],
         png_name=f'global_historical_{target_variable}'
     )
     plot_global_percentages(
-        best_performers_dfs[target_variable]['inter'], 
-        f'Global Performance -- {target_variable}',
+        best_performers_dfs[target_variable]['inter'],
         historical=False,
         png_name=f'global_naive_{target_variable}'
     )
     plot_site_type_percentages_global(
         best_performers_dfs[target_variable]['inter'], 
-        metadata, 
-        f'{target_variable}',
+        metadata,
         png_name=f'type_global_historical_{target_variable}'
     )
     plot_site_type_percentages_global(
         best_performers_dfs[target_variable]['inter'], 
-        metadata, 
-        f'{target_variable}',
+        metadata,
         historical=False,
         png_name=f'type_global_naive_{target_variable}'
     )
     plot_site_type_percentages_bymodel(
         best_performers_dfs[target_variable]['inter'], 
-        metadata, 
-        f'{target_variable}',
+        metadata,
         png_name=f'type_local_historical_{target_variable}'
     )
     plot_site_type_percentages_bymodel(
         best_performers_dfs[target_variable]['inter'], 
-        metadata, 
-        f'{target_variable}',
+        metadata,
         historical=False,
         png_name=f'type_local_naive_{target_variable}'
     )
     plot_window_and_sitetype_performance(
         best_performers_dfs[target_variable]['inter'], 
         metadata, 
-        f'{target_variable}',
         png_name=f'date_type_global_historical_{target_variable}'
     )
     plot_window_and_sitetype_performance(
         best_performers_dfs[target_variable]['inter'], 
         metadata, 
-        f'{target_variable}',
         historical=False,
         png_name=f'date_type_global_naive_{target_variable}'
     )
     plot_region_percentages(
         best_performers_dfs[target_variable]['inter'], 
         metadata, 
-        f'{target_variable}',
         png_name=f'region_global_historical_{target_variable}'
     )
     plot_region_percentages(
         best_performers_dfs[target_variable]['inter'], 
         metadata, 
-        f'{target_variable}',
         historical=False,
         png_name=f'region_global_naive_{target_variable}'
     )
     plot_improvement_bysite(
         best_performers_dfs[target_variable]['inter'], 
         metadata, 
-        f'Global Performance across sites -- {target_variable}',
         png_name=f'global_loc_historical_{target_variable}'
     )
     plot_improvement_bysite(
         best_performers_dfs[target_variable]['inter'], 
         metadata, 
-        f'Global Performance across sites -- {target_variable}',
         historical=False,
         png_name=f'global_loc_naive_{target_variable}'
     )
@@ -177,14 +166,13 @@ for target_variable in target_variables:
         plot_improvement_bysite(
             score_df, 
             metadata, 
-            f'{model} Performance -- {target_variable}',
             png_name=f'{model}_historical_{target_variable}'
         )
         plot_improvement_bysite(
             score_df, 
             metadata, 
-            f'{model} Performance -- {target_variable}',
             historical=False,
             png_name=f'{model}_naive_{target_variable}'
         )
 
+print("\n" + f"Runtime: {(time.time() - start_)/60:.2f} minutes")

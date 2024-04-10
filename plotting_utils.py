@@ -589,7 +589,7 @@ def plot_forecast(date, targets_df, site_id, target_variable, model, id_list, s3
             unique_labels.append(label)
             unique_handles.append(handles[i])
     
-    plt.legend(unique_handles, unique_labels)
+    plt.legend(unique_handles, unique_labels, loc='lower right')
     ax.spines["left"].set_visible(True)
     ax.spines["bottom"].set_visible(True)
     plt.grid(False)
@@ -656,13 +656,12 @@ def plot_crps_bydate(model, model_id, targets_df, site_id, target_variable, s3_d
     ax.spines["left"].set_visible(True)
     ax.spines["bottom"].set_visible(True)
     plt.xticks(rotation=30)
-    plt.title(f'{target_variable} @ {site_id}')
     
     # Saving the plot if desired
     if png_name:
         save_fig(plt, png_name)
 
-def plot_improvement_bysite(score_df, metadata_df, title_name, historical=True, png_name=None):
+def plot_improvement_bysite(score_df, metadata_df, historical=True, png_name=None):
     '''
     Returns a plot of the scoring metric difference vs. the site id;
     site type is encoded by color.
@@ -710,15 +709,14 @@ def plot_improvement_bysite(score_df, metadata_df, title_name, historical=True, 
     plt.xticks(rotation=30)
     legend_handles = [Patch(facecolor=color, edgecolor='black') for color in color_dict.values()]
     legend_labels = list(color_dict.keys())
-    plt.legend(legend_handles, legend_labels, title='Site Type', loc='upper right')
+    plt.legend(legend_handles, legend_labels, title='Site Type', loc='lower right')
     plt.tight_layout()
-    plt.title(title_name)
 
     # Saving the plot if desired
     if png_name:
         save_fig(plt, png_name)
 
-def plot_global_percentages(df_, title_name, historical=True, png_name=None):
+def plot_global_percentages(df_, historical=True, png_name=None):
     '''
     Returns a plot of the scoring metric difference vs. ML model type
     '''
@@ -747,14 +745,13 @@ def plot_global_percentages(df_, title_name, historical=True, png_name=None):
     ax.spines["bottom"].set_visible(True)
     plt.xticks(rotation=30)
     plt.legend(labels=[])
-    plt.title(title_name)
 
     # Saving the plot if desired
     if png_name:
         save_fig(plt, png_name)
 
 
-def plot_site_type_percentages_global(df_, metadata_df, title_name, historical=True, png_name=None):
+def plot_site_type_percentages_global(df_, metadata_df, historical=True, png_name=None):
     '''
     Returns a plot of the scoring metric difference vs. water body type.
     '''
@@ -798,13 +795,12 @@ def plot_site_type_percentages_global(df_, metadata_df, title_name, historical=T
     ax.spines["bottom"].set_visible(True)
     plt.xticks(rotation=30)
     plt.legend(labels=[])
-    plt.title(title_name)
 
     # Saving the plot if desired
     if png_name:
         save_fig(plt, png_name)
 
-def plot_site_type_percentages_bymodel(df_, metadata_df, title_name, historical=True, png_name=None):
+def plot_site_type_percentages_bymodel(df_, metadata_df, historical=True, png_name=None):
     '''
     Returns a plot of the scoring metric difference vs. model type;
     site type is encoded by color
@@ -851,15 +847,14 @@ def plot_site_type_percentages_bymodel(df_, metadata_df, title_name, historical=
     plt.xticks(rotation=30)
     legend_handles = [Patch(facecolor=color, edgecolor='black') for color in color_dict.values()]
     legend_labels = list(color_dict.keys())
-    plt.legend(legend_handles, legend_labels, title='Site Type', loc='upper right')
+    plt.legend(legend_handles, legend_labels, title='Site Type', loc='lower right')
     plt.tight_layout()
-    plt.title(title_name)
 
     # Saving the plot if desired
     if png_name:
         save_fig(plt, png_name)
 
-def plot_window_and_sitetype_performance(model_df, metadata_df, title_name, historical=True, png_name=None):
+def plot_window_and_sitetype_performance(model_df, metadata_df, historical=True, png_name=None):
     '''
     Returns a plot of the difference in scoring metric vs. forecast windows;
     site type is encoded by color
@@ -908,15 +903,14 @@ def plot_window_and_sitetype_performance(model_df, metadata_df, title_name, hist
         Patch(facecolor=color, edgecolor='black') for color in color_dict.values()
     ]
     legend_labels = list(color_dict.keys())
-    plt.legend(legend_handles, legend_labels, title='Site Type', loc='upper right')
+    plt.legend(legend_handles, legend_labels, title='Site Type', loc='lower right')
     plt.tight_layout()
-    plt.title(title_name)
 
     # Saving the plot if desired
     if png_name:
         save_fig(plt, png_name)
 
-def plot_region_percentages(df_, metadata_df, title_name, historical=True, png_name=None):
+def plot_region_percentages(df_, metadata_df, historical=True, png_name=None):
     '''
     Returns a plot of the difference in scoring metric vs. the geographical regions;
     site type is encoded by color
@@ -965,15 +959,14 @@ def plot_region_percentages(df_, metadata_df, title_name, historical=True, png_n
         Patch(facecolor=color, edgecolor='black') for color in color_dict.values()
     ]
     legend_labels = list(color_dict.keys())
-    plt.legend(legend_handles, legend_labels, title='Site Type', loc='upper right')
+    plt.legend(legend_handles, legend_labels, title='Site Type', loc='lower right')
     plt.tight_layout()
-    plt.title(title_name)
 
     # Saving the plot if desired
     if png_name:
         save_fig(plt, png_name)
 
-def plot_crps_over_time_agg(intra_df, title_name, historical=True, png_name=None):
+def plot_crps_over_time_agg(intra_df, historical=True, png_name=None):
     plt.figure(figsize=(12, 8))
     if historical:
         metric = 'crps'
@@ -1003,12 +996,11 @@ def plot_crps_over_time_agg(intra_df, title_name, historical=True, png_name=None
     ax.spines["left"].set_visible(True)
     ax.spines["bottom"].set_visible(True)
     plt.axhline(y=0, color='black', linestyle='dashed', linewidth=1)
-    plt.legend(labels=['ML Model Aggregate'])
+    plt.legend(labels=['ML Model Aggregate'], loc='upper right')
     if metric == 'ae':
         plt.ylabel("AbsErr-SS")
     elif metric == 'crps':
         plt.ylabel("CRPSS")
-    plt.title(title_name)
     plt.show()
 
     # Saving the plot if desired

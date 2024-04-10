@@ -12,6 +12,9 @@ from s3_utils import (
 import warnings
 import os
 import argparse
+import time
+
+start_ = time.time()
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--bucket", default='shared-neon4cast-darts', type=str,
@@ -184,7 +187,7 @@ for target_variable in target_variables:
         ignore_index=True,
     )
 
-# And saving (remotel)
+# And saving (remotely)
 if s3_client:
     for target_variable in target_variables:
         for pos in ['inter', 'intra']:
@@ -202,3 +205,5 @@ else:
                 f'dataframes/{target_variable}_{pos}_all.csv', 
                 index=False,
             )
+
+print("\n" + f"Runtime: {(time.time() - start_)/60:.2f} minutes")
