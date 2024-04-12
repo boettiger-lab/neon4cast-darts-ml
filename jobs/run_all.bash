@@ -6,7 +6,7 @@
 
 python jobs/preprocess_timeseries.py
 
-./jobs/run_all.bash
+./jobs/run_training.bash
 
 python save_score_dfs.py # Add CL flags here if using different storage
 

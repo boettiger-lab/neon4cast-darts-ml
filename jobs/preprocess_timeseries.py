@@ -22,10 +22,7 @@ if __name__=="__main__":
     start = time.time()
 
     # Flag which GPU to use
-    try:
-        os.environ["CUDA_VISIBLE_DEVICES"] = f"{args.device}"
-    except:
-        continue
+    os.environ["CUDA_VISIBLE_DEVICES"] = f"{args.device}"
 
     targets = pd.read_csv("aquatics-targets.csv.gz")
 
