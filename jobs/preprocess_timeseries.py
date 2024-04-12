@@ -26,6 +26,16 @@ if __name__=="__main__":
 
     targets = pd.read_csv("aquatics-targets.csv.gz")
 
+    # Make s3 bucket connection
+    try:
+        s3_client = establish_s3_connection(
+            endpoint=args.endpoint,
+            json_file=args.accesskey,
+        )
+        s3_dict = {'client': s3_client, 'bucket': args.bucket}
+    except:
+        s3_dict = {'client': None, 'bucket': None}
+
     # Defining the training data split date to be one year before the most
     # date time in aquatics-targets.csv.gz. Validation split date will be
     # the most recent date.
@@ -34,17 +44,11 @@ if __name__=="__main__":
     one_year_before = most_recent_date - timedelta(days=365)
     one_year_before_str = one_year_before.strftime('%Y-%m-%d')
 
-    s3_client = establish_s3_connection(
-        endpoint=args.endpoint,
-        json_file=args.accesskey,
-    ) 
-
     # For the training set
     data_preprocessor = TimeSeriesPreprocessor(
         validation_split_date=one_year_before_str,
         load_dir_name='preprocessed_train/',
-        s3_client=s3_client,
-        bucket_name=args.bucket,
+        s3_dict=s3_dict,
     )
     
     _ = [data_preprocessor.preprocess_data(site) for site in targets.site_id.unique()]
@@ -55,8 +59,7 @@ if __name__=="__main__":
     data_preprocessor = TimeSeriesPreprocessor(
         validation_split_date=most_recent_date_str,
         load_dir_name='preprocessed_validate/',
-        s3_client=s3_client,
-        bucket_name=args.bucket,
+        s3_dict=s3_dict,
     )
     
     _ = [data_preprocessor.preprocess_data(site) for site in targets.site_id.unique()]
@@ -64,4 +67,4 @@ if __name__=="__main__":
     data_preprocessor.save()
 
     
-    print ("Runtime to preprocess the time series: ", time.time()-start)
+    print('\n' + f"Runtime: {(time.time() - start_)/60:.2f} minutes")
