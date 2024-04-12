@@ -5,23 +5,49 @@ from utils import (
 import pandas as pd
 import os
 import time
+import argparse
 
-# TO DO: PUT IN ARG PARSER SO THAT PEOPLE CAN SPECIFY
-# S3 CONNECTION
+parser = argparse.ArgumentParser()
+parser.add_argument("--bucket", default='shared-neon4cast-darts', type=str,
+                    help="Bucket name to connect to.")
+parser.add_argument("--endpoint", default='https://minio.carlboettiger.info', type=str,
+                    help="S3 Endpoint.")
+parser.add_argument("--accesskey", default='credentials.json', type=str,
+                    help="JSON file with access key for bucket (if required).")
+parser.add_argument("--device", default=0, type=int,
+                    help="Specify which GPU device to use [0,1].")
+args = parser.parse_args()
 
 if __name__=="__main__":
     start = time.time()
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-    targets = pd.read_csv("targets.csv.gz")
 
-    s3_client = establish_s3_connection() 
+    # Flag which GPU to use
+    try:
+        os.environ["CUDA_VISIBLE_DEVICES"] = f"{args.device}"
+    except:
+        continue
+
+    targets = pd.read_csv("aquatics-targets.csv.gz")
+
+    # Defining the training data split date to be one year before the most
+    # date time in aquatics-targets.csv.gz. Validation split date will be
+    # the most recent date.
+    most_recent_date_str = np.sort(targets['datetime'].unique())[-1]
+    most_recent_date = datetime.strptime(most_recent_date_str, '%Y-%m-%d')
+    one_year_before = most_recent_date - timedelta(days=365)
+    one_year_before_str = one_year_before.strftime('%Y-%m-%d')
+
+    s3_client = establish_s3_connection(
+        endpoint=args.endpoint,
+        json_file=args.accesskey,
+    ) 
 
     # For the training set
     data_preprocessor = TimeSeriesPreprocessor(
-        validation_split_date='2022-07-19',
+        validation_split_date=one_year_before_str,
         load_dir_name='preprocessed_train/',
         s3_client=s3_client,
-        bucket_name='shared-neon4cast-darts',
+        bucket_name=args.bucket,
     )
     
     _ = [data_preprocessor.preprocess_data(site) for site in targets.site_id.unique()]
@@ -30,10 +56,10 @@ if __name__=="__main__":
 
     # For the validation set
     data_preprocessor = TimeSeriesPreprocessor(
-        validation_split_date='2023-07-19',
+        validation_split_date=most_recent_date_str,
         load_dir_name='preprocessed_validate/',
         s3_client=s3_client,
-        bucket_name='shared-neon4cast-darts',
+        bucket_name=args.bucket,
     )
     
     _ = [data_preprocessor.preprocess_data(site) for site in targets.site_id.unique()]
