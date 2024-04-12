@@ -55,6 +55,12 @@ def generate_metadata_df():
 
     return metadata
 
+def save_fig(plt, png_name):
+    if png_name:
+        if not os.path.exists('plots/'):
+            os.makedirs('plots/')
+        plt.savefig(f'plots/{png_name}.png')
+
 def get_validation_series(targets_df, site_id, target_variable, date, forecast_horizon):
     '''
     Returns a TimeSeries of the forecast window from `targets_df`
@@ -396,9 +402,9 @@ def score_improvement_bysite(model, id, targets_df, target_variable, suffix="", 
         suffixes=('_forecast', '_naive')
     )
 
-    # Finding the difference in absolute error between the models of interest
-    intra_merged_crps['value_difference'] = intra_merged_crps['value_forecast'] - intra_merged_crps['value_historical']
-    intra_merged_ae['value_difference'] = intra_merged_ae['value_forecast'] - intra_merged_ae['value_naive']
+    # Finding the skill score
+    intra_merged_crps['value_skill'] = 1 - (intra_merged_crps['value_forecast'] / intra_merged_crps['value_historical'])
+    intra_merged_ae['value_skill'] = 1 - (intra_merged_ae['value_forecast'] / intra_merged_ae['value_naive'])
     intra_merged_crps.rename(
         columns={'metric_forecast': 'metric'}, 
         inplace=True
@@ -408,15 +414,15 @@ def score_improvement_bysite(model, id, targets_df, target_variable, suffix="", 
         inplace=True
     )
     # Then tidying up and Merging
-    intra_merged_crps = intra_merged_crps[['site_id', 'date', 't', 'metric', 'value_difference']]
-    intra_merged_ae = intra_merged_ae[['site_id', 'date', 't', 'metric', 'value_difference']]
+    intra_merged_crps = intra_merged_crps[['site_id', 'date', 't', 'metric', 'value_skill']]
+    intra_merged_ae = intra_merged_ae[['site_id', 'date', 't', 'metric', 'value_skill']]
     intra_merged = pd.merge(
         intra_merged_crps, 
         intra_merged_ae, 
         on=['site_id', 'date', 't'], 
         suffixes=('_crps', '_ae')
     )
-    intra_merged = intra_merged[['site_id', 'date', 't', 'value_difference_crps', 'value_difference_ae']]
+    intra_merged = intra_merged[['site_id', 'date', 't', 'value_skill_crps', 'value_skill_ae']]
 
     # Now, back to the inter-forecast window comparison
     # Using the mean CRPS score over the forecast horizon
@@ -454,21 +460,21 @@ def score_improvement_bysite(model, id, targets_df, target_variable, suffix="", 
         naive_df, 
         on=['site_id', 'date', 'metric'], 
     )
-    # Calculate percent improvement for each metric
-    crps_merged['difference_historical_ml_crps'] = (
-        crps_merged['value_forecast'] - crps_merged['value_historical']
+    # Calculate skill score
+    crps_merged['skill_historical_ml_crps'] = (
+        1 - (crps_merged['value_forecast'] / crps_merged['value_historical'])
     )
     
-    rmse_merged['difference_historical_ml_rmse'] = (
-        rmse_merged['value_forecast'] - rmse_merged['value_historical'] 
+    rmse_merged['skill_historical_ml_rmse'] = (
+        1 - (rmse_merged['value_forecast'] / rmse_merged['value_historical'])
     ) 
     
-    rmse_merged['difference_naive_ml_rmse'] = (
-        rmse_merged['value_forecast'] - rmse_merged['value_naive'] 
+    rmse_merged['skill_naive_ml_rmse'] = (
+       1 - (rmse_merged['value_forecast'] / rmse_merged['value_naive'])
     )
 
-    rmse_merged['difference_naive_historical_rmse'] = (
-        rmse_merged['value_historical'] - rmse_merged['value_naive']
+    rmse_merged['skill_naive_historical_rmse'] = (
+        1 - (rmse_merged['value_historical'] / rmse_merged['value_naive'])
     )
 
     # Delete unnecessary columns
@@ -508,7 +514,7 @@ def score_improvement_bysite(model, id, targets_df, target_variable, suffix="", 
 
     return merged_df, intra_merged
     
-def plot_forecast(date, targets_df, site_id, target_variable, model, id_list, s3_dict={'client': None, 'bucket': None}, plot_name=None):
+def plot_forecast(date, targets_df, site_id, target_variable, model, id_list, s3_dict={'client': None, 'bucket': None}, png_name=None):
     '''
     Returns a plot of the forecast specified by the date and model directory
     in addition to the observed values, the climatology forecast and the naive persistence
@@ -583,18 +589,16 @@ def plot_forecast(date, targets_df, site_id, target_variable, model, id_list, s3
             unique_labels.append(label)
             unique_handles.append(handles[i])
     
-    plt.legend(unique_handles, unique_labels)
+    plt.legend(unique_handles, unique_labels, loc='lower right')
     ax.spines["left"].set_visible(True)
     ax.spines["bottom"].set_visible(True)
     plt.grid(False)
 
     # Saving the plot if desired
-    if plot_name != None:
-        if not os.path.exists(f"plots/{site_id}/{target_variable}/"):
-            os.makedirs(f"plots/{site_id}/{target_variable}/")
-        plt.savefig(f"plots/{site_id}/{target_variable}/{plot_name}")
+    if png_name:
+        save_fig(plt, png_name)
 
-def plot_crps_bydate(model, model_id, targets_df, site_id, target_variable, s3_dict={'client': None, 'bucket': None}, suffix="", plot_name=None):
+def plot_crps_bydate(model, model_id, targets_df, site_id, target_variable, s3_dict={'client': None, 'bucket': None}, suffix="", png_name=None):
     '''
     Returns a strip plot of the crps scores for the inputted ML model and the climatology model at
     each forecast window
@@ -652,15 +656,12 @@ def plot_crps_bydate(model, model_id, targets_df, site_id, target_variable, s3_d
     ax.spines["left"].set_visible(True)
     ax.spines["bottom"].set_visible(True)
     plt.xticks(rotation=30)
-    plt.title(f'{target_variable} @ {site_id}')
     
     # Saving the plot if desired
-    if plot_name != None:
-        if not os.path.exists(f"plots/{site_id}/{target_variable}/"):
-            os.makedirs(f"plots/{site_id}/{target_variable}/")
-        plt.savefig(f"plots/{site_id}/{target_variable}/{plot_name}")
+    if png_name:
+        save_fig(plt, png_name)
 
-def plot_improvement_bysite(score_df, metadata_df, title_name, historical=True):
+def plot_improvement_bysite(score_df, metadata_df, historical=True, png_name=None):
     '''
     Returns a plot of the scoring metric difference vs. the site id;
     site type is encoded by color.
@@ -668,8 +669,8 @@ def plot_improvement_bysite(score_df, metadata_df, title_name, historical=True):
     ## Find the percentage of forecast windows during which the ML model excelled 
     ## the historical forecaster
     column = (
-        'difference_historical_ml_crps' if historical \
-         else 'difference_naive_ml_rmse'
+        'skill_historical_ml_crps' if historical \
+         else 'skill_naive_ml_rmse'
     )
 
     # Combine df's to include metadata
@@ -699,27 +700,30 @@ def plot_improvement_bysite(score_df, metadata_df, title_name, historical=True):
     plt.grid(False)
     plt.axhline(y=0, color='black', linestyle='dashed', linewidth=1)
     if historical:
-        plt.ylabel(f"CRPS(Model) - CRPS(Climatology) ")
+        plt.ylabel("CRPSS")
     else:
-        plt.ylabel(f"RMSE(Model) - RMSE(Naive Persistence) ")
+        plt.ylabel("RMSE-SS")
     ax = plt.gca()
     ax.spines["left"].set_visible(True)
     ax.spines["bottom"].set_visible(True)
     plt.xticks(rotation=30)
     legend_handles = [Patch(facecolor=color, edgecolor='black') for color in color_dict.values()]
     legend_labels = list(color_dict.keys())
-    plt.legend(legend_handles, legend_labels, title='Site Type', loc='upper right')
+    plt.legend(legend_handles, legend_labels, title='Site Type', loc='lower right')
     plt.tight_layout()
-    plt.title(title_name)
 
-def plot_global_percentages(df_, title_name, historical=True):
+    # Saving the plot if desired
+    if png_name:
+        save_fig(plt, png_name)
+
+def plot_global_percentages(df_, historical=True, png_name=None):
     '''
     Returns a plot of the scoring metric difference vs. ML model type
     '''
     plt.figure(figsize=(12, 8))
     column = (
-        'difference_historical_ml_crps' if historical \
-         else 'difference_naive_ml_rmse'
+        'skill_historical_ml_crps' if historical \
+         else 'skill_naive_ml_rmse'
     ) 
 
     sns.boxplot(
@@ -733,17 +737,21 @@ def plot_global_percentages(df_, title_name, historical=True):
     plt.grid(False)
     plt.axhline(y=0, color='black', linestyle='dashed', linewidth=1)
     if historical:
-        plt.ylabel(f"CRPS(Model) - CRPS(Climatology) ")
+        plt.ylabel("CRPSS")
     else:
-        plt.ylabel(f"RMSE(Model) - RMSE(Naive Persistence) ")
+        plt.ylabel("RMSE-SS")
     ax = plt.gca()
     ax.spines["left"].set_visible(True)
     ax.spines["bottom"].set_visible(True)
     plt.xticks(rotation=30)
     plt.legend(labels=[])
-    plt.title(title_name)
 
-def plot_site_type_percentages_global(df_, metadata_df, title_name, historical=True):
+    # Saving the plot if desired
+    if png_name:
+        save_fig(plt, png_name)
+
+
+def plot_site_type_percentages_global(df_, metadata_df, historical=True, png_name=None):
     '''
     Returns a plot of the scoring metric difference vs. water body type.
     '''
@@ -763,8 +771,8 @@ def plot_site_type_percentages_global(df_, metadata_df, title_name, historical=T
     ).drop(columns=['field_site_id'])
 
     column = (
-        'difference_historical_ml_crps' if historical \
-         else 'difference_naive_ml_rmse'
+        'skill_historical_ml_crps' if historical \
+         else 'skill_naive_ml_rmse'
     ) 
 
     sns.boxplot(
@@ -779,17 +787,20 @@ def plot_site_type_percentages_global(df_, metadata_df, title_name, historical=T
     plt.grid(False)
     plt.axhline(y=0, color='black', linestyle='dashed', linewidth=1)
     if historical:
-        plt.ylabel(f"CRPS(ML Model) - CRPS(Climatology Model) ")
+        plt.ylabel("CRPSS")
     else:
-        plt.ylabel(f"RMSE(ML Model) - RMSE(Naive Persistence) ")
+        plt.ylabel("RMSE-SS")
     ax = plt.gca()
     ax.spines["left"].set_visible(True)
     ax.spines["bottom"].set_visible(True)
     plt.xticks(rotation=30)
     plt.legend(labels=[])
-    plt.title(title_name)
 
-def plot_site_type_percentages_bymodel(df_, metadata_df, title_name, historical=True):
+    # Saving the plot if desired
+    if png_name:
+        save_fig(plt, png_name)
+
+def plot_site_type_percentages_bymodel(df_, metadata_df, historical=True, png_name=None):
     '''
     Returns a plot of the scoring metric difference vs. model type;
     site type is encoded by color
@@ -810,8 +821,8 @@ def plot_site_type_percentages_bymodel(df_, metadata_df, title_name, historical=
     ).drop(columns=['field_site_id'])
 
     column = (
-        'difference_historical_ml_crps' if historical \
-         else 'difference_naive_ml_rmse'
+        'skill_historical_ml_crps' if historical \
+         else 'skill_naive_ml_rmse'
     ) 
 
     sns.boxplot(
@@ -827,20 +838,23 @@ def plot_site_type_percentages_bymodel(df_, metadata_df, title_name, historical=
     plt.grid(False)
     plt.axhline(y=0, color='black', linestyle='dashed', linewidth=1)
     if historical:
-        plt.ylabel(f"CRPS(Model) - CRPS(Climatology) ")
+        plt.ylabel("CRPSS")
     else:
-        plt.ylabel(f"RMSE(Model) - RMSE(Naive Persistence) ")
+        plt.ylabel("RMSE-SS")
     ax = plt.gca()
     ax.spines["left"].set_visible(True)
     ax.spines["bottom"].set_visible(True)
     plt.xticks(rotation=30)
     legend_handles = [Patch(facecolor=color, edgecolor='black') for color in color_dict.values()]
     legend_labels = list(color_dict.keys())
-    plt.legend(legend_handles, legend_labels, title='Site Type', loc='upper right')
+    plt.legend(legend_handles, legend_labels, title='Site Type', loc='lower right')
     plt.tight_layout()
-    plt.title(title_name)
 
-def plot_window_and_sitetype_performance(model_df, metadata_df, title_name, historical=True):
+    # Saving the plot if desired
+    if png_name:
+        save_fig(plt, png_name)
+
+def plot_window_and_sitetype_performance(model_df, metadata_df, historical=True, png_name=None):
     '''
     Returns a plot of the difference in scoring metric vs. forecast windows;
     site type is encoded by color
@@ -861,8 +875,8 @@ def plot_window_and_sitetype_performance(model_df, metadata_df, title_name, hist
     ).drop(columns=['field_site_id'])
 
     column = (
-        'difference_historical_ml_crps' if historical \
-         else 'difference_naive_ml_rmse'
+        'skill_historical_ml_crps' if historical \
+         else 'skill_naive_ml_rmse'
     ) 
 
     sns.boxplot(
@@ -878,9 +892,9 @@ def plot_window_and_sitetype_performance(model_df, metadata_df, title_name, hist
     plt.grid(False)
     plt.axhline(y=0, color='black', linestyle='dashed', linewidth=1)
     if historical:
-        plt.ylabel(f"CRPS(Model) - CRPS(Climatology) ")
+        plt.ylabel("CRPSS")
     else:
-        plt.ylabel(f"RMSE(Model) - RMSE(Naive Persistence) ")
+        plt.ylabel("RMSE-SS")
     ax = plt.gca()
     ax.spines["left"].set_visible(True)
     ax.spines["bottom"].set_visible(True)
@@ -889,11 +903,14 @@ def plot_window_and_sitetype_performance(model_df, metadata_df, title_name, hist
         Patch(facecolor=color, edgecolor='black') for color in color_dict.values()
     ]
     legend_labels = list(color_dict.keys())
-    plt.legend(legend_handles, legend_labels, title='Site Type', loc='upper right')
+    plt.legend(legend_handles, legend_labels, title='Site Type', loc='lower right')
     plt.tight_layout()
-    plt.title(title_name)
 
-def plot_region_percentages(df_, metadata_df, title_name, historical=True):
+    # Saving the plot if desired
+    if png_name:
+        save_fig(plt, png_name)
+
+def plot_region_percentages(df_, metadata_df, historical=True, png_name=None):
     '''
     Returns a plot of the difference in scoring metric vs. the geographical regions;
     site type is encoded by color
@@ -914,8 +931,8 @@ def plot_region_percentages(df_, metadata_df, title_name, historical=True):
     ).drop(columns=['field_site_id'])
 
     column = (
-        'difference_historical_ml_crps' if historical \
-         else 'difference_naive_ml_rmse'
+        'skill_historical_ml_crps' if historical \
+         else 'skill_naive_ml_rmse'
     ) 
     
     sns.boxplot(
@@ -931,9 +948,9 @@ def plot_region_percentages(df_, metadata_df, title_name, historical=True):
     plt.grid(False)
     plt.axhline(y=0, color='black', linestyle='dashed', linewidth=1)
     if historical:
-        plt.ylabel(f"CRPS(Model) - CRPS(Climatology) ")
+        plt.ylabel("CRPSS")
     else:
-        plt.ylabel(f"RMSE(Model) - RMSE(Naive Persistence) ")
+        plt.ylabel("RMSE-SS")
     ax = plt.gca()
     ax.spines["left"].set_visible(True)
     ax.spines["bottom"].set_visible(True)
@@ -942,32 +959,26 @@ def plot_region_percentages(df_, metadata_df, title_name, historical=True):
         Patch(facecolor=color, edgecolor='black') for color in color_dict.values()
     ]
     legend_labels = list(color_dict.keys())
-    plt.legend(legend_handles, legend_labels, title='Site Type', loc='upper right')
+    plt.legend(legend_handles, legend_labels, title='Site Type', loc='lower right')
     plt.tight_layout()
-    plt.title(title_name)
 
-def plot_crps_over_time_agg(intra_df, title_name, historical=True):
+    # Saving the plot if desired
+    if png_name:
+        save_fig(plt, png_name)
+
+def plot_crps_over_time_agg(intra_df, historical=True, png_name=None):
     plt.figure(figsize=(12, 8))
     if historical:
         metric = 'crps'
     else:
         metric = 'ae'
     # Group by 't' and 'model' and calculate the mean and percentiles
-    summary_df = intra_df.groupby(['t'])[f'value_difference_{metric}'].agg([lambda x: x.quantile(0.05),
+    summary_df = intra_df.groupby(['t'])[f'value_skill_{metric}'].agg([lambda x: x.quantile(0.05),
                                                                   lambda x: x.quantile(0.5),
                                                                   lambda x: x.quantile(0.95)]).reset_index()
     
     # Rename the columns for better clarity
     summary_df.columns = ['t', '5th_percentile', '50th_percentile', '95th_percentile']
-    
-    # Plot shaded regions for percentiles
-    plt.fill_between(
-        summary_df['t'],
-        summary_df['5th_percentile'],
-        summary_df['95th_percentile'],
-        alpha=0.2,
-        color='#1f77b4',
-    )
     
     # Plot the median line separately to avoid shading it
     sns.lineplot(
@@ -976,6 +987,7 @@ def plot_crps_over_time_agg(intra_df, title_name, historical=True):
         y='50th_percentile',
         legend=False,
         color='#1f77b4',
+        linewidth=2,
     )
     
     # Customize plot appearance
@@ -984,10 +996,13 @@ def plot_crps_over_time_agg(intra_df, title_name, historical=True):
     ax.spines["left"].set_visible(True)
     ax.spines["bottom"].set_visible(True)
     plt.axhline(y=0, color='black', linestyle='dashed', linewidth=1)
-    plt.legend(labels=['ML Model Aggregate'])
+    plt.legend(labels=['ML Model Aggregate'], loc='upper right')
     if metric == 'ae':
-        plt.ylabel("AbsErr(ML Model) - AbsErr(Naive Persistence Model)")
+        plt.ylabel("AbsErr-SS")
     elif metric == 'crps':
-        plt.ylabel("CRPS(ML Model) - CRPS(Climatology Model)")
-    plt.title(title_name)
+        plt.ylabel("CRPSS")
     plt.show()
+
+    # Saving the plot if desired
+    if png_name:
+        save_fig(plt, png_name)

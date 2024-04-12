@@ -8,6 +8,7 @@ from utils import (
     establish_s3_connection,
 )
 import argparse
+import pandas as pd
 import time
 import os
 import copy
@@ -59,14 +60,24 @@ args = parser.parse_args()
 # Need to flag to say forecast didn't use covariates; also need to be careful with
 # time axis encoder here, need to save these differently
 if __name__ == "__main__":
-    s3_client = establish_s3_connection(
-        endpoint=args.endpoint,
-        json_file=args.accesskey,
-    )
-    s3_dict = {'client': s3_client, 'bucket': args.bucket}
+    try:
+        s3_client = establish_s3_connection(
+            endpoint=args.endpoint,
+            json_file=args.accesskey,
+        )
+        s3_dict = {'client': s3_client, 'bucket': args.bucket}
+    except:
+        s3_client, s3_dict = None, None
+        
     # Selecting the device
-    os.environ["CUDA_VISIBLE_DEVICES"] = f"{args.device}"
-    
+    try:
+        os.environ["CUDA_VISIBLE_DEVICES"] = f"{args.device}"
+    except:
+        continue
+
+    # Accessing the validation split date from targets csv
+    targets = pd.read_csv("aquatics-targets.csv.gz")
+    validation_split_date = np.sort(targets['datetime'].unique())[-1]
     
     # Loading hyperparameters
     hyperparams_loc = f"hyperparameters/train/{args.target}/{args.model}"
@@ -118,7 +129,7 @@ if __name__ == "__main__":
             validate_preprocessor=preprocessors[1],
             covariates_names=covariates_list,
             output_name=f"{output_name}/model_{i}/",
-            validation_split_date=args.date,
+            validation_split_date=validation_split_date,
             model_hyperparameters=model_hyperparameters,
             model_likelihood=model_likelihood,
             site_id=args.site,

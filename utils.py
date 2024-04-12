@@ -229,17 +229,10 @@ class HistoricalForecaster():
         global_mean = variable_df["observation"].mean()
         global_std = variable_df["observation"].std()
         # Confirm that there are 365 days, if there aren't fill in with na
-        for doy in range(1, 366):
-            try:
-                self.doy_df.loc[doy]
-            except:
-                self.doy_df.loc[doy] = [np.nan, np.nan]
-        # If there are persistent gaps in the data, fill in with global mean and std
-        for index, row in self.doy_df.iterrows():
-            if np.isnan(row["mean"]):
-                self.doy_df.loc[index]["mean"] = global_mean
-            if np.isnan(row["std"]):
-                self.doy_df.loc[index]["std"] = global_std
+        self.doy_df = self.doy_df.reindex(range(1, 366))
+        # Fill missing values with global mean and std
+        self.doy_df['mean'].fillna(global_mean, inplace=True)
+        self.doy_df['std'].fillna(global_std, inplace=True)
     
 
     def make_forecasts(self):
