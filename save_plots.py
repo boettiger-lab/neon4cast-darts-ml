@@ -49,7 +49,7 @@ try:
     )
     s3_dict = {'client': s3_client, 'bucket': args.bucket}
 except:
-    s3_client = None
+    s3_dict = {'client': None, 'bucket': None}
 
 # Lists and dictionaries to store dataframes and 
 best_performers_dfs = {}

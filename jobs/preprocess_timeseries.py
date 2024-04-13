@@ -69,4 +69,4 @@ if __name__=="__main__":
     data_preprocessor.save()
 
     
-    print('\n' + f"Runtime: {(time.time() - start_)/60:.2f} minutes")
+    print('\n' + f"Runtime: {(time.time() - start)/60:.2f} minutes" + '\n')

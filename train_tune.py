@@ -14,6 +14,9 @@ import os
 import copy
 import json
 import yaml
+import numpy as np
+from datetime import datetime, timedelta
+
 start = time.time()
 
 
@@ -25,10 +28,6 @@ parser.add_argument("--target", default="oxygen", type=str,
                     "[oxygen, temperature, chla].")
 parser.add_argument("--site", default="BARC", type=str,
                     help="Denotes which site to use.")
-parser.add_argument("--date", default="2022-07-19", type=str,
-                    help="Flags for the validation split date, "+\
-                    "n.b. that this should align with last date " +\
-                    "of the preprocessed time series.")
 parser.add_argument("--epochs", default=200, type=int, 
                     help="The number of epochs to train a model for.")
 parser.add_argument("--nocovs", default=False, action="store_true",
@@ -70,14 +69,14 @@ if __name__ == "__main__":
         s3_client, s3_dict = None, None
         
     # Selecting the device
-    try:
-        os.environ["CUDA_VISIBLE_DEVICES"] = f"{args.device}"
-    except:
-        continue
+    os.environ["CUDA_VISIBLE_DEVICES"] = f"{args.device}"
 
     # Accessing the validation split date from targets csv
     targets = pd.read_csv("aquatics-targets.csv.gz")
-    validation_split_date = np.sort(targets['datetime'].unique())[-1]
+    most_recent_date_str = np.sort(targets['datetime'].unique())[-1]
+    most_recent_date = datetime.strptime(most_recent_date_str, '%Y-%m-%d')
+    one_year_before = most_recent_date - timedelta(days=365)
+    validation_split_date = one_year_before.strftime('%Y-%m-%d')
     
     # Loading hyperparameters
     hyperparams_loc = f"hyperparameters/train/{args.target}/{args.model}"
