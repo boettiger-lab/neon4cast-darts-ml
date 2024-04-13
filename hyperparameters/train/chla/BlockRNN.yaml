@@ -1,5 +1,4 @@
 model_hyperparameters:
   input_chunk_length: 31
-  log_tensorboard: True
   lr: .001
 model_likelihood: 'QuantileRegression'
