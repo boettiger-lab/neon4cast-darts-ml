@@ -737,14 +737,17 @@ def plot_global_percentages(df_, historical=True, png_name=None):
     plt.grid(False)
     plt.axhline(y=0, color='black', linestyle='dashed', linewidth=1)
     if historical:
-        plt.ylabel("CRPSS")
+        plt.ylabel("CRPSS", fontsize=20)
     else:
-        plt.ylabel("RMSE-SS")
+        plt.ylabel("RMSE-SS", fontsize=20)
     ax = plt.gca()
     ax.spines["left"].set_visible(True)
     ax.spines["bottom"].set_visible(True)
-    plt.xticks(rotation=30)
+    plt.xlabel('model', fontsize=20)
+    plt.xticks(rotation=30, fontsize=18)
+    plt.yticks(fontsize=18)
     plt.legend(labels=[])
+    plt.tight_layout()
 
     # Saving the plot if desired
     if png_name:
@@ -987,7 +990,7 @@ def plot_crps_over_time_agg(intra_df, historical=True, png_name=None):
         y='50th_percentile',
         legend=False,
         color='#1f77b4',
-        linewidth=2,
+        linewidth=6,
     )
     
     # Customize plot appearance
@@ -996,12 +999,14 @@ def plot_crps_over_time_agg(intra_df, historical=True, png_name=None):
     ax.spines["left"].set_visible(True)
     ax.spines["bottom"].set_visible(True)
     plt.axhline(y=0, color='black', linestyle='dashed', linewidth=1)
-    plt.legend(labels=['ML Model Aggregate'], loc='upper right')
     if metric == 'ae':
-        plt.ylabel("AbsErr-SS")
+        plt.ylabel("AbsErr-SS", fontsize=40)
     elif metric == 'crps':
-        plt.ylabel("CRPSS")
-    plt.show()
+        plt.ylabel("CRPSS", fontsize=40)
+    plt.xlabel("t", fontsize=40)
+    plt.xticks(fontsize=38)
+    plt.yticks(fontsize=38)
+    plt.tight_layout()
 
     # Saving the plot if desired
     if png_name:
