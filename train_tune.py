@@ -70,9 +70,10 @@ if __name__ == "__main__":
         
     # Selecting the device
     os.environ["CUDA_VISIBLE_DEVICES"] = f"{args.device}"
+    csv_name = "aquatics-targets.csv.gz"
 
     # Accessing the validation split date from targets csv
-    targets = pd.read_csv("aquatics-targets.csv.gz")
+    targets = pd.read_csv(csv_name)
     most_recent_date_str = np.sort(targets['datetime'].unique())[-1]
     most_recent_date = datetime.strptime(most_recent_date_str, '%Y-%m-%d')
     one_year_before = most_recent_date - timedelta(days=365)
@@ -98,7 +99,7 @@ if __name__ == "__main__":
     preprocessors = []
     for suffix in ['train', 'validate']:
         preprocessor = TimeSeriesPreprocessor(
-            input_csv_name = "targets.csv.gz",
+            input_csv_name = csv_name,
             load_dir_name = f"preprocessed_{suffix}/",
             s3_dict=s3_dict,
         )

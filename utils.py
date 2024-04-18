@@ -339,7 +339,7 @@ def season_doy_range(year, month, day):
 
 class TimeSeriesPreprocessor():
     def __init__(self,
-                 input_csv_name = "targets.csv.gz",
+                 input_csv_name = "aquatics-targets.csv.gz",
                  s3_dict: Optional[dict] = {'client': None, 'bucket': None},
                  load_dir_name: Optional[str] = "preprocessed_timeseries/",
                  datetime_column_name: Optional[str] = "datetime",
@@ -617,7 +617,7 @@ class BaseForecaster():
                  seed: Optional[int] = 0,
                  verbose: Optional[bool] = False,
                  log_tensorboard: Optional[bool] = False,
-                 targets_csv: Optional[str] = "targets.csv.gz",
+                 targets_csv: Optional[str] = "aquatics-targets.csv.gz",
                  s3_dict: Optional[dict] = {'client': None, 'bucket': None}
                  ):
         self.model_ = {"BlockRNN": BlockRNNModel, 
@@ -882,7 +882,6 @@ class NaiveEnsembleForecaster():
                  target_variable: Optional[str] = None,
                  date: Optional[str] = None,
                  output_name: Optional[str] = "default",
-                 targets_csv: Optional[str] = "targets.csv.gz",
                  s3_dict: Optional[dict] = {'client': None, 'bucket': None}
                  ):
         self.model_list = model_list
@@ -890,7 +889,6 @@ class NaiveEnsembleForecaster():
         self.target_variable = target_variable
         self.date = date
         self.output_name = output_name
-        self.targets_df = pd.read_csv(targets_csv)
         self.s3_dict = s3_dict
     
         if not self.s3_dict['client']:

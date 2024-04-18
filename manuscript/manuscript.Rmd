@@ -80,14 +80,12 @@ The ML models are configured to generate probabilistic forecasts. The neural net
   \centering
   \begin{subfigure}{\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../plots/global_historical_oxygen.png}
-    \caption{}
+    \includegraphics[width=\textwidth]{../plots/type_local_historical_oxygen.png}
   \end{subfigure}
   
   \begin{subfigure}{\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../plots/global_naive_oxygen.png}
-    \caption{}
+    \includegraphics[width=\textwidth]{../plots/type_local_naive_oxygen.png}
   \end{subfigure}
   
   \caption{Comparison of Historical and Naive Oxygen}
@@ -97,14 +95,12 @@ The ML models are configured to generate probabilistic forecasts. The neural net
   \centering
   \begin{subfigure}{\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../plots/global_historical_temperature.png}
-    \caption{}
+    \includegraphics[width=\textwidth]{../plots/type_local_historical_temperature.png}
   \end{subfigure}
   
   \begin{subfigure}{\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../plots/global_naive_temperature.png}
-    \caption{}
+    \includegraphics[width=\textwidth]{../plots/type_local_naive_temperature.png}
   \end{subfigure}
   
   \caption{Comparison of Historical and Naive temperature}
@@ -114,14 +110,12 @@ The ML models are configured to generate probabilistic forecasts. The neural net
   \centering
   \begin{subfigure}{\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../plots/global_historical_chla.png}
-    \caption{}
+    \includegraphics[width=\textwidth]{../plots/type_local_historical_chla.png}
   \end{subfigure}
   
   \begin{subfigure}{\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../plots/global_naive_chla.png}
-    \caption{}
+    \includegraphics[width=\textwidth]{../plots/type_local_naive_chla.png}
   \end{subfigure}
   
   \caption{Comparison of Historical and Naive chla}
@@ -133,41 +127,35 @@ The ML models are configured to generate probabilistic forecasts. The neural net
   \begin{subfigure}{0.3\textwidth}
     \centering
     \includegraphics[width=\textwidth]{../plots/intra_historical_oxygen.png}
-    \caption{}
   \end{subfigure}
   \hfill
   \begin{subfigure}{0.3\textwidth}
     \centering
     \includegraphics[width=\textwidth]{../plots/intra_historical_temperature.png}
-    \caption{}
   \end{subfigure}
   \hfill
   \begin{subfigure}{0.3\textwidth}
     \centering
     \includegraphics[width=\textwidth]{../plots/intra_historical_chla.png}
-    \caption{}
   \end{subfigure}
   
   
   \begin{subfigure}{0.3\textwidth}
     \centering
     \includegraphics[width=\textwidth]{../plots/intra_naive_oxygen.png}
-    \caption{}
   \end{subfigure}
   \hfill
   \begin{subfigure}{0.3\textwidth}
     \centering
     \includegraphics[width=\textwidth]{../plots/intra_naive_temperature.png}
-    \caption{}
   \end{subfigure}
   \hfill
   \begin{subfigure}{0.3\textwidth}
     \centering
     \includegraphics[width=\textwidth]{../plots/intra_naive_chla.png}
-    \caption{}
   \end{subfigure}
   
-  \caption{Comparison of Historical and Naive parameters intra}
+  \caption{Oxygen, Temperature, Chlorophyll Intrawindow plots}
 \end{figure}
 
 \begin{figure}[!htbp]
@@ -175,16 +163,14 @@ The ML models are configured to generate probabilistic forecasts. The neural net
   \begin{subfigure}{\textwidth}
     \centering
     \includegraphics[width=\textwidth]{../plots/global_loc_historical_oxygen.png}
-    \caption{}
   \end{subfigure}
   
   \begin{subfigure}{\textwidth}
     \centering
     \includegraphics[width=\textwidth]{../plots/date_type_global_historical_oxygen.png}
-    \caption{}
   \end{subfigure}
   
-  \caption{Comparison of Historical and Naive Oxygen}
+  \caption{Global performance on oxygen}
 \end{figure}
 
 
