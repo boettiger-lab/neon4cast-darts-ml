@@ -14,7 +14,7 @@ from plotting_utils import (
 import pandas as pd
 from utils import (
     establish_s3_connection,
-    NaiveEnsembleForecaster
+    NaiveEnsembleForecaster,
 )
 from s3_utils import (
     download_df_from_s3,
@@ -38,7 +38,6 @@ args = parser.parse_args()
 # Ignore all warnings; admittedly not the best practice here :/
 warnings.filterwarnings("ignore")
 
-targets = pd.read_csv("targets.csv.gz")
 metadata = generate_metadata_df()
 
 # Make s3 bucket connection
@@ -57,7 +56,7 @@ best_models_listform = {}
 target_variables = ['oxygen', 'temperature', 'chla']
 model_names = [
     "BlockRNN", "Transformer", "NBEATS", 
-    "TCN", "RNN", "TFT", 
+    "TCN", "RNN", "TFT", "AutoTheta",
     "NLinear", "DLinear", "NaiveEnsemble",
 ]
 

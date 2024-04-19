@@ -1,6 +1,7 @@
 from utils import (
     TimeSeriesPreprocessor,
     establish_s3_connection,
+    read_and_pivot_csv,
 )
 import pandas as pd
 import os
@@ -26,7 +27,7 @@ if __name__=="__main__":
     # Flag which GPU to use
     os.environ["CUDA_VISIBLE_DEVICES"] = f"{args.device}"
 
-    targets = pd.read_csv("aquatics-targets.csv.gz")
+    targets = read_and_pivot_csv()
 
     # Make s3 bucket connection
     try:

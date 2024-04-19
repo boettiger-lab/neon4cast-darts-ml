@@ -339,7 +339,12 @@ def modify_score_dict(csv,
     
     return score_dict
 
-def score_improvement_bysite(model, id, targets_df, target_variable, suffix="", s3_dict={'client': None, 'bucket': None}):
+def score_improvement_bysite(model, 
+                             id_, 
+                             targets_df, 
+                             target_variable, 
+                             suffix="", 
+                             s3_dict={'client': None, 'bucket': None}):
     '''
     This function collects the forecast scores for the specifed model and target variable.
     Then it returns a dataframe with columns for the difference in CRPS and RMSE
@@ -353,14 +358,14 @@ def score_improvement_bysite(model, id, targets_df, target_variable, suffix="", 
         if s3_dict['client']:
             try:
                 csv_list = ls_bucket(
-                    f'forecasts/{site_id}/{target_variable}/{model}/model_{id}/', 
+                    f'forecasts/{site_id}/{target_variable}/{model}/model_{id_}/', 
                     s3_dict, 
                     plotting=True,
                 )
             except:
                 csv_list = []
         else:
-            glob_prefix = f'forecasts/{site_id}/{target_variable}/{model}/model_{id}/*.csv'
+            glob_prefix = f'forecasts/{site_id}/{target_variable}/{model}/model_{id_}/*.csv'
             csv_list = sorted(glob.glob(glob_prefix))
         for csv in csv_list:
             site_dict = modify_score_dict(
@@ -509,12 +514,19 @@ def score_improvement_bysite(model, id, targets_df, target_variable, suffix="", 
     )
     merged_df['model'] = model
     intra_merged['model'] = model
-    merged_df['model_id'] = id
-    intra_merged['model_id'] = id
+    merged_df['model_id'] = id_
+    intra_merged['model_id'] = id_
 
     return merged_df, intra_merged
     
-def plot_forecast(date, targets_df, site_id, target_variable, model, id_list, s3_dict={'client': None, 'bucket': None}, png_name=None):
+def plot_forecast(date, 
+                  targets_df, 
+                  site_id, 
+                  target_variable, 
+                  model, 
+                  id_list, 
+                  s3_dict={'client': None, 'bucket': None}, 
+                  png_name=None):
     '''
     Returns a plot of the forecast specified by the date and model directory
     in addition to the observed values, the climatology forecast and the naive persistence
@@ -523,15 +535,15 @@ def plot_forecast(date, targets_df, site_id, target_variable, model, id_list, s3
     cmap = mpl.colormaps["tab10"]
     colors = cmap.colors
     dfs = []
-    for i, id in enumerate(id_list):
+    for i, id_ in enumerate(id_list):
         # Loading the forecast csv and creating a time series
         if s3_dict['client']:
             df = download_df_from_s3(
-                f'forecasts/{site_id}/{target_variable}/{model}/model_{id}/{date}.csv', 
+                f'forecasts/{site_id}/{target_variable}/{model}/model_{id_}/{date}.csv', 
                 s3_dict
             )
         else: 
-            csv_name = f"forecasts/{site_id}/{target_variable}/{model}/model_{id}/{date}.csv'"
+            csv_name = f"forecasts/{site_id}/{target_variable}/{model}/model_{id_}/{date}.csv'"
             df = pd.read_csv(csv_name)
     
         times = pd.to_datetime(df["datetime"])
@@ -598,7 +610,14 @@ def plot_forecast(date, targets_df, site_id, target_variable, model, id_list, s3
     if png_name:
         save_fig(plt, png_name)
 
-def plot_crps_bydate(model, model_id, targets_df, site_id, target_variable, s3_dict={'client': None, 'bucket': None}, suffix="", png_name=None):
+def plot_crps_bydate(model, 
+                     model_id, 
+                     targets_df, 
+                     site_id, 
+                     target_variable, 
+                     s3_dict={'client': None, 'bucket': None}, 
+                     suffix="", 
+                     png_name=None):
     '''
     Returns a strip plot of the crps scores for the inputted ML model and the climatology model at
     each forecast window

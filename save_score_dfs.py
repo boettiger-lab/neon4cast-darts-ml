@@ -4,7 +4,8 @@ from plotting_utils import (
 import pandas as pd
 from utils import (
     establish_s3_connection,
-    NaiveEnsembleForecaster
+    NaiveEnsembleForecaster,
+    read_and_pivot_csv
 )
 from s3_utils import (
     upload_df_to_s3,
@@ -38,7 +39,7 @@ def return_best_id(df):
 # Ignore all warnings; admittedly not the best practice here :/
 warnings.filterwarnings("ignore")
 # Note might want to change this to updated csv
-targets = pd.read_csv("targets.csv.gz")
+targets = read_and_pivot_csv()
 
 try:
     # Make s3 bucket connection
@@ -54,20 +55,20 @@ except:
 model_names = [
     "BlockRNN", "Transformer", 
     "NBEATS", "TCN", "RNN", "TFT", 
-    "NLinear", "DLinear",
+    "NLinear", "DLinear", "AutoTheta"
 ]
 target_variables = ["oxygen", "temperature", "chla"]
-ids = [0, 1, 2, 3, 4]
 s3_dict = {'client': s3_client, 'bucket': args.bucket}
 scores_dict = {}
 for model in model_names:
     scores_dict[model] = {}
-    for id_ in ids:
+    for id_ in range(5):
         # Did not train more than 2 [.]Linear models, so need to
         # treat these separately
-        if model == "NLinear" or model == "DLinear":
-            if id_ > 1:
-                continue
+        if (model == "NLinear" or model == "DLinear") and id_ > 1:
+            continue
+        if model == 'AutoTheta' and id_ > 0:
+            continue
         scores_dict[model][id_] = {}
         for target_variable in target_variables:
             inter_merged, intra_merged = score_improvement_bysite(
@@ -89,10 +90,11 @@ for target_variable in target_variables:
     for pos in ['inter', 'intra']:
         concat_list = []
         for model in model_names:
-            for id_ in ids:
-                if model == "DLinear" or model == "NLinear":
-                    if id_ > 1:
-                        continue
+            for id_ in range(5):
+                if (model == "DLinear" or model == "NLinear") and id_ > 1:
+                    continue
+                if model == "AutoTheta" and id_ > 0:
+                    continue
                 concat_list.append(scores_dict[model][id_][target_variable][pos])
         global_dfs[target_variable][pos] = pd.concat(concat_list)
 
@@ -128,10 +130,12 @@ for target_variable in target_variables:
     )
 
 # Don't need to run this cell if the dataframes have been loaded
+# Removing AutoTheta as we just want ML models for the Ensemble Model
+ml_model_names = model_names.remove("AutoTheta")
 best_models_listform = {}
 for target_variable in target_variables:
     best_models_listform[target_variable] = [
-        [model, best_models[model][target_variable]] for model in model_names
+        [model, best_models[model][target_variable]] for model in ml_model_names
     ]
 
 # Making forecasts with the naive ensemble model
@@ -152,36 +156,33 @@ for target_variable in target_variables:
 
 # Saving these scores in a dataframe
 model_names = ["NaiveEnsemble"]
-ids = [0]
 ne_scores = {}
-for model in model_names:
+for model in ml_model_names:
     ne_scores[model] = {}
-    for id_ in ids:
-        ne_scores[model][id_] = {}
-        for target_variable in target_variables:
-            inter_merged, intra_merged = score_improvement_bysite(
-                model,
-                id_,
-                targets, 
-                target_variable, 
-                s3_dict=s3_dict,
-            )
-            ne_scores[model][id_][target_variable] = {}
-            ne_scores[model][id_][target_variable]['inter'] = inter_merged
-            ne_scores[model][id_][target_variable]['intra'] = intra_merged
+    for target_variable in target_variables:
+        inter_merged, intra_merged = score_improvement_bysite(
+            model,
+            0,
+            targets, 
+            target_variable, 
+            s3_dict=s3_dict,
+        )
+        ne_scores[model][target_variable] = {}
+        ne_scores[model][target_variable]['inter'] = inter_merged
+        ne_scores[model][target_variable]['intra'] = intra_merged
 
 
 for target_variable in target_variables:
     best_performers_dfs[target_variable]['inter'] = pd.concat(
         [
-            ne_scores['NaiveEnsemble'][0][target_variable]['inter'], 
+            ne_scores['NaiveEnsemble'][target_variable]['inter'], 
             best_performers_dfs[target_variable]['inter']
         ], 
         ignore_index=True,
     )
     best_performers_dfs[target_variable]['intra'] = pd.concat(
         [
-            ne_scores['NaiveEnsemble'][0][target_variable]['intra'], 
+            ne_scores['NaiveEnsemble'][target_variable]['intra'], 
             best_performers_dfs[target_variable]['intra']
         ], 
         ignore_index=True,
