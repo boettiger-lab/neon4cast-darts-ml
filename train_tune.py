@@ -6,6 +6,7 @@ from utils import (
     TimeSeriesPreprocessor,
     handle_nn_architecture,
     establish_s3_connection,
+    read_and_pivot_csv,
 )
 import argparse
 import pandas as pd
@@ -41,8 +42,6 @@ parser.add_argument("--test", default=True, action="store_false",
                     "from being saved.")
 parser.add_argument("--device", default=0, type=int,
                     help="Specify which GPU device to use [0,1].")
-parser.add_argument("--prefix", default=None, type=str,
-                    help="Prefix to use with the output csv of the forecast.")
 parser.add_argument("--bucket", default='shared-neon4cast-darts', type=str,
                     help="Bucket name to connect to.")
 parser.add_argument("--endpoint", default='https://minio.carlboettiger.info', type=str,
@@ -70,10 +69,9 @@ if __name__ == "__main__":
         
     # Selecting the device
     os.environ["CUDA_VISIBLE_DEVICES"] = f"{args.device}"
-    csv_name = "aquatics-targets.csv.gz"
 
     # Accessing the validation split date from targets csv
-    targets = pd.read_csv(csv_name)
+    targets = read_and_pivot_csv()
     most_recent_date_str = np.sort(targets['datetime'].unique())[-1]
     most_recent_date = datetime.strptime(most_recent_date_str, '%Y-%m-%d')
     one_year_before = most_recent_date - timedelta(days=365)
@@ -99,7 +97,7 @@ if __name__ == "__main__":
     preprocessors = []
     for suffix in ['train', 'validate']:
         preprocessor = TimeSeriesPreprocessor(
-            input_csv_name = csv_name,
+            input_csv_name = 'aquatics-targets.csv.gz',
             load_dir_name = f"preprocessed_{suffix}/",
             s3_dict=s3_dict,
         )
@@ -108,8 +106,6 @@ if __name__ == "__main__":
     
     
     output_name = f"{args.site}/{args.target}/{args.model}"
-    if args.prefix:
-        output_name += f"{args.prefix}"
     
     # Instantiating the model
     extras = {"epochs": args.epochs,

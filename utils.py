@@ -35,6 +35,20 @@ from s3_utils import(
     ls_bucket,
 )
 
+def read_and_pivot_csv(csv_name='aquatics-targets.csv.gz'):
+    '''
+    Read the targets csv and pivot wider
+    '''
+    targets_df = pd.read_csv(csv_name)
+    targets_df = targets_df.pivot_table(
+        index=['datetime', 'site_id'], 
+        columns='variable', 
+        values='observation',
+    )
+    targets_df.reset_index(inplace=True)
+
+    return targets_df
+
 def establish_s3_connection(
     endpoint='https://minio.carlboettiger.info', 
     json_file='credentials.json'):

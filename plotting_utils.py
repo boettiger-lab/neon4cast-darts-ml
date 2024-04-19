@@ -841,13 +841,15 @@ def plot_site_type_percentages_bymodel(df_, metadata_df, historical=True, png_na
     plt.grid(False)
     plt.axhline(y=0, color='black', linestyle='dashed', linewidth=1)
     if historical:
-        plt.ylabel("CRPSS")
+        plt.ylabel("CRPSS", fontsize=20)
     else:
-        plt.ylabel("RMSE-SS")
+        plt.ylabel("RMSE-SS", fontsize=20)
     ax = plt.gca()
     ax.spines["left"].set_visible(True)
     ax.spines["bottom"].set_visible(True)
-    plt.xticks(rotation=30)
+    plt.xlabel("model", fontsize=20)
+    plt.xticks(rotation=30, fontsize=18)
+    plt.yticks(fontsize=18)
     legend_handles = [Patch(facecolor=color, edgecolor='black') for color in color_dict.values()]
     legend_labels = list(color_dict.keys())
     plt.legend(legend_handles, legend_labels, title='Site Type', loc='lower right')
