@@ -354,10 +354,8 @@ class TimeSeriesPreprocessor():
         self.filter_kw_args = filter_kw_args
         self.sites_dict = {}
         self.s3_dict = s3_dict
-        self.year = int(validation_split_date[:4])
-        month = int(validation_split_date[5:7])
-        day = int(validation_split_date[8:])
-        self.split_date = pd.Timestamp(year=self.year, month=month, day=day)
+        self.split_date = pd.to_datetime(validation_split_date)
+        self.year = self.split_date.year
         self.df = pd.read_csv(input_csv_name)
         self.df['datetime'] = pd.to_datetime(self.df.datetime)
         self.df = self.df[self.df.datetime <= self.split_date]
@@ -468,6 +466,7 @@ class TimeSeriesPreprocessor():
         self.sites_dict_null = {}
         # Preparing a dataframe
         site_df = self.df.loc[self.df.site_id == site]
+        site_df = site_df.sort_values(by=self.datetime_column_name)
         times = pd.to_datetime(site_df[self.datetime_column_name])
         times = pd.DatetimeIndex(times)
 
@@ -486,10 +485,9 @@ class TimeSeriesPreprocessor():
 
         self.make_doy_dict(site_df)
         variable_list = ["chla", "oxygen", "temperature", "air_tmp"]
-        # I am not exactly sure why but there are duplicate time indices, so I need to remove them
-        # when creating the time series
-        self.var_tseries_dict = {var: TimeSeries.from_times_and_values(times[~times.duplicated()], 
-                                                                 site_df[[var]][~times.duplicated()], 
+        # I think this is coming from above
+        self.var_tseries_dict = {var: TimeSeries.from_times_and_values(times, 
+                                                                 site_df[[var]], 
                                                                  fill_missing_dates=True,
                                                                  freq="D") 
                                                         for var in variable_list}
