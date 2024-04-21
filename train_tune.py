@@ -95,10 +95,13 @@ if __name__ == "__main__":
     # Loading data preprocessors for training and validation
     preprocessors = []
     for suffix in ['train', 'validate']:
+        split_date = most_recent_date_str if suffix == 'train' \
+                        else validation_split_date
         preprocessor = TimeSeriesPreprocessor(
             input_csv_name = 'aquatics-targets.csv.gz',
             load_dir_name = f"preprocessed_{suffix}/",
             s3_dict=s3_dict,
+            validation_split_date=split_date,
         )
         preprocessor.load(args.site)
         preprocessors.append(preprocessor)

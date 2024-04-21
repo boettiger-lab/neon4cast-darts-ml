@@ -2,8 +2,9 @@ from stats_utils import AutoThetaForecaster
 from utils import (
     TimeSeriesPreprocessor,
     establish_s3_connection,
-    read_and_pivot_csv,
 )
+import pandas as pd
+import numpy as np
 import time
 import argparse
 
@@ -33,10 +34,15 @@ if __name__ == "__main__":
     except:
         s3_client, s3_dict = None, None
 
+    # Accessing the validation split date from targets csv
+    targets = pd.read_csv("aquatics-targets.csv.gz")
+    most_recent_date_str = np.sort(targets['datetime'].unique())[-1]
+    
     preprocessor = TimeSeriesPreprocessor(
         input_csv_name = "aquatics-targets.csv.gz",
         load_dir_name = "preprocessed_validate/",
         s3_dict=s3_dict,
+        validation_split_date=most_recent_date_str,
     )
     preprocessor.load(args.site)
 
