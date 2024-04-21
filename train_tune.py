@@ -6,7 +6,6 @@ from utils import (
     TimeSeriesPreprocessor,
     handle_nn_architecture,
     establish_s3_connection,
-    read_and_pivot_csv,
 )
 import argparse
 import pandas as pd
@@ -71,7 +70,7 @@ if __name__ == "__main__":
     os.environ["CUDA_VISIBLE_DEVICES"] = f"{args.device}"
 
     # Accessing the validation split date from targets csv
-    targets = read_and_pivot_csv()
+    targets = pd.read_csv("aquatics-targets.csv.gz")
     most_recent_date_str = np.sort(targets['datetime'].unique())[-1]
     most_recent_date = datetime.strptime(most_recent_date_str, '%Y-%m-%d')
     one_year_before = most_recent_date - timedelta(days=365)

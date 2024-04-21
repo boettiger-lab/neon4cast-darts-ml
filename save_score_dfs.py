@@ -4,8 +4,7 @@ from plotting_utils import (
 import pandas as pd
 from utils import (
     establish_s3_connection,
-    NaiveEnsembleForecaster,
-    read_and_pivot_csv
+    NaiveEnsembleForecaster
 )
 from s3_utils import (
     upload_df_to_s3,
@@ -39,7 +38,7 @@ def return_best_id(df):
 # Ignore all warnings; admittedly not the best practice here :/
 warnings.filterwarnings("ignore")
 # Note might want to change this to updated csv
-targets = read_and_pivot_csv()
+targets = pd.read_csv("aquatics-targets.csv.gz")
 
 try:
     # Make s3 bucket connection

@@ -35,20 +35,6 @@ from s3_utils import(
     ls_bucket,
 )
 
-def read_and_pivot_csv(csv_name='aquatics-targets.csv.gz'):
-    '''
-    Read the targets csv and pivot wider
-    '''
-    targets_df = pd.read_csv(csv_name)
-    targets_df = targets_df.pivot_table(
-        index=['datetime', 'site_id'], 
-        columns='variable', 
-        values='observation',
-    )
-    targets_df.reset_index(inplace=True)
-
-    return targets_df
-
 def establish_s3_connection(
     endpoint='https://minio.carlboettiger.info', 
     json_file='credentials.json'):
@@ -210,7 +196,7 @@ class HistoricalForecaster():
                  site_id: Optional[str] = None,
                  target_variable: Optional[str] = "oxygen",
                  output_csv_name: Optional[str] = "historical_forecaster_output.csv",
-                 validation_split_date: Optional[str] = "2023-03-09", #YYYY-MM-DD
+                 validation_split_date: Optional[str] = None, #YYYY-MM-DD
                  forecast_horizon: Optional[int] = 30,
                  ):
         self.targets = targets
@@ -357,7 +343,7 @@ class TimeSeriesPreprocessor():
                  s3_dict: Optional[dict] = {'client': None, 'bucket': None},
                  load_dir_name: Optional[str] = "preprocessed_timeseries/",
                  datetime_column_name: Optional[str] = "datetime",
-                 validation_split_date: Optional[str] = "2023-03-09",
+                 validation_split_date: Optional[str] = None,
                  filter_kw_args: Optional[dict] = {"alpha_0": 0.001,
                                                    "n_restarts_0": 100,
                                                    "num_samples": 500,},
@@ -372,7 +358,7 @@ class TimeSeriesPreprocessor():
         month = int(validation_split_date[5:7])
         day = int(validation_split_date[8:])
         self.split_date = pd.Timestamp(year=self.year, month=month, day=day)
-        self.df = pd.read_csv(self.input_csv_name)
+        self.df = pd.read_csv(input_csv_name)
         self.df['datetime'] = pd.to_datetime(self.df.datetime)
         self.df = self.df[self.df.datetime <= self.split_date]
     
@@ -500,8 +486,10 @@ class TimeSeriesPreprocessor():
 
         self.make_doy_dict(site_df)
         variable_list = ["chla", "oxygen", "temperature", "air_tmp"]
-        self.var_tseries_dict = {var: TimeSeries.from_times_and_values(times, 
-                                                                 site_df[[var]], 
+        # I am not exactly sure why but there are duplicate time indices, so I need to remove them
+        # when creating the time series
+        self.var_tseries_dict = {var: TimeSeries.from_times_and_values(times[~times.duplicated()], 
+                                                                 site_df[[var]][~times.duplicated()], 
                                                                  fill_missing_dates=True,
                                                                  freq="D") 
                                                         for var in variable_list}
@@ -621,7 +609,7 @@ class BaseForecaster():
                  target_variable: Optional[str] = None,
                  covariates_names: Optional[list] = None,
                  output_name: Optional[str] = "default",
-                 validation_split_date: Optional[str] = "2023-03-09", #YYYY-MM-DD n.b. this is inclusive
+                 validation_split_date: Optional[str] = None, #YYYY-MM-DD n.b. this is inclusive
                  model_hyperparameters: Optional[dict] = None,
                  model_likelihood: Optional[dict] = None,
                  forecast_horizon: Optional[int] = 30,
