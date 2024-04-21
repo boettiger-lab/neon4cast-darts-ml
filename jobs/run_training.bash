@@ -9,6 +9,6 @@
 ./jobs/hierarch_train_across.bash chla 1
 ./jobs/hierarch_train_across_nocovs.bash chla 1
 
-./jobs/train_acros_sites_stats.bash oxygen &
-./jobs/train_acros_sites_stats.bash chla &
-./jobs/train_acros_sites_stats.bash temperature &
+./jobs/train_across_sites_stats.bash oxygen &
+./jobs/train_across_sites_stats.bash chla &
+./jobs/train_across_sites_stats.bash temperature &
