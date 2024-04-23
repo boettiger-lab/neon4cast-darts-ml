@@ -54,7 +54,7 @@ if __name__=="__main__":
         s3_dict=s3_dict,
     )
     
-    data_preprocessor.preprocess_data('FLNT')
+    data_preprocessor.preprocess_data('PRLA')
     
     data_preprocessor.save()
 
