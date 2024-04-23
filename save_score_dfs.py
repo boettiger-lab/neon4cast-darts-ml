@@ -89,8 +89,8 @@ if not args.cached:
                 # Giving opportunity to cache score dicts as this loop
                 # requires a lengthy runtime
                 if args.cache:
-                    inter_merged.to_csv(f'local_cache/{model}_{id_}_inter.csv', index=False)
-                    intra_merged.to_csv(f'local_cache/{model}_{id_}_intra.csv', index=False)
+                    inter_merged.to_csv(f'local_cache/{model}_{id_}_{target_variable}_inter.csv', index=False)
+                    intra_merged.to_csv(f'local_cache/{model}_{id_}_{target_variable}_intra.csv', index=False)
 
 # Accessed cached dataframes to reduce long runtimes from above
 else:
@@ -104,8 +104,8 @@ else:
             scores_dict[model][id_] = {}
             for target_variable in target_variables:
                 scores_dict[model][id_][target_variable] = {}
-                scores_dict[model][id_][target_variable]['inter'] = pd.read_csv(f'local_cache/{model}_{id_}_inter.csv')
-                scores_dict[model][id_][target_variable]['intra'] = pd.read_csv(f'local_cache/{model}_{id_}_intra.csv')
+                scores_dict[model][id_][target_variable]['inter'] = pd.read_csv(f'local_cache/{model}_{id_}_{target_variable}_inter.csv')
+                scores_dict[model][id_][target_variable]['intra'] = pd.read_csv(f'local_cache/{model}_{id_}_{target_variable}_intra.csv')
 
 # With all the individual forecast score_dicts, we will now
 # concatanate them all
@@ -163,7 +163,7 @@ for target_variable in target_variables:
     best_models_listform[target_variable] = [
         [model, best_models[model][target_variable]] for model in ml_model_names
     ]
-
+import pdb; pdb.set_trace()
 # Making forecasts with the naive ensemble model
 for target_variable in target_variables:
     sites_w_forecasts = site_date_dict[target_variable].keys()
