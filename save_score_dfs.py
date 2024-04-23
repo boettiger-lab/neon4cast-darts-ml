@@ -181,9 +181,8 @@ for target_variable in target_variables:
             ensemble_model.make_forecasts()
 
 # Saving these scores in a dataframe
-model_names = ["NaiveEnsemble"]
 ne_scores = {}
-for model in ml_model_names:
+for model in ["NaiveEnsemble"]:
     ne_scores[model] = {}
     for target_variable in target_variables:
         inter_merged, intra_merged = score_improvement_bysite(
