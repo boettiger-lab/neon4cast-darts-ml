@@ -385,6 +385,11 @@ class TimeSeriesPreprocessor():
     
         # If there is a gap over 4 indices, use big gap filter
         gap_series = self.var_tseries_dict[var].gaps()
+        # If there are are gap series with huge gaps, ignore
+        if len(gap_series) != 0:
+            if (gap_series['gap_size'] > 365).any():
+                return None
+            
         stitched_df = filtered.pd_dataframe(suppress_warnings=True)
         
         # Ignoring runtime warnings in this function only
@@ -437,12 +442,12 @@ class TimeSeriesPreprocessor():
                         # If above conditions fail use the previous date's samples, and
                         # if there is an issue with accessing a previous date, 
                         # use global
-                       try:
-                           mean = stitched_df.loc[previous_date].median()
-                           std = stitched_df.loc[previous_date].std()
-                       except:
-                           mean = self.doy_dict[var]['mean'].median()
-                           std = self.doy_dict[var]['std'].max()
+                        try:
+                            mean = stitched_df.loc[previous_date].median()
+                            std = stitched_df.loc[previous_date].std()
+                        except:
+                            mean = self.doy_dict[var]['mean'].median()
+                            std = self.doy_dict[var]['std'].max()
 
                     stitched_df.loc[date] = np.random.normal(mean, std, size=(500,))
                     previous_date = date
@@ -455,7 +460,7 @@ class TimeSeriesPreprocessor():
                                   -1,
                               )
         )
-        
+
         return stitched_series
 
     def preprocess_data(self, site):

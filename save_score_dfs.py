@@ -13,6 +13,7 @@ import warnings
 import os
 import argparse
 import time
+import pandas as pd
 
 start_ = time.time()
 
@@ -23,6 +24,10 @@ parser.add_argument("--endpoint", default='https://minio.carlboettiger.info', ty
                     help="S3 Endpoint.")
 parser.add_argument("--accesskey", default='credentials.json', type=str,
                     help="JSON file with access key for bucket (if required).")
+parser.add_argument("--cached", default=False, action="store_true",
+                    help="Flag to use cached.")
+parser.add_argument("--cache", default=False, action="store_true",
+                    help="Flag to use cached.")
 args = parser.parse_args()
 
 
@@ -59,27 +64,48 @@ model_names = [
 target_variables = ["oxygen", "temperature", "chla"]
 s3_dict = {'client': s3_client, 'bucket': args.bucket}
 scores_dict = {}
-for model in model_names:
-    scores_dict[model] = {}
-    for id_ in range(5):
-        # Did not train more than 2 [.]Linear models, so need to
-        # treat these separately
-        if (model == "NLinear" or model == "DLinear") and id_ > 1:
-            continue
-        if model == 'AutoTheta' and id_ > 0:
-            continue
-        scores_dict[model][id_] = {}
-        for target_variable in target_variables:
-            inter_merged, intra_merged = score_improvement_bysite(
-                model,
-                id_,
-                targets, 
-                target_variable, 
-                s3_dict=s3_dict,
-            )
-            scores_dict[model][id_][target_variable] = {}
-            scores_dict[model][id_][target_variable]['inter'] = inter_merged
-            scores_dict[model][id_][target_variable]['intra'] = intra_merged
+if not args.cached:
+    for model in model_names:
+        scores_dict[model] = {}
+        for id_ in range(5):
+            # Did not train more than 2 [.]Linear models, so need to
+            # treat these separately
+            if (model == "NLinear" or model == "DLinear") and id_ > 1:
+                continue
+            if model == 'AutoTheta' and id_ > 0:
+                continue
+            scores_dict[model][id_] = {}
+            for target_variable in target_variables:
+                inter_merged, intra_merged = score_improvement_bysite(
+                    model,
+                    id_,
+                    targets, 
+                    target_variable, 
+                    s3_dict=s3_dict,
+                )
+                scores_dict[model][id_][target_variable] = {}
+                scores_dict[model][id_][target_variable]['inter'] = inter_merged
+                scores_dict[model][id_][target_variable]['intra'] = intra_merged
+                # Giving opportunity to cache score dicts as this loop
+                # requires a lengthy runtime
+                if args.cache:
+                    inter_merged.to_csv(f'local_cache/{model}_{id_}_inter.csv', index=False)
+                    intra_merged.to_csv(f'local_cache/{model}_{id_}_intra.csv', index=False)
+
+# Accessed cached dataframes to reduce long runtimes from above
+else:
+    for model in model_names:
+        scores_dict[model] = {}
+        for id_ in range(5):
+            if (model == "NLinear" or model == "DLinear") and id_ > 1:
+                continue
+            if model == 'AutoTheta' and id_ > 0:
+                continue
+            scores_dict[model][id_] = {}
+            for target_variable in target_variables:
+                scores_dict[model][id_][target_variable] = {}
+                scores_dict[model][id_][target_variable]['inter'] = pd.read_csv(f'local_cache/{model}_{id_}_inter.csv')
+                scores_dict[model][id_][target_variable]['intra'] = pd.read_csv(f'local_cache/{model}_{id_}_intra.csv')
 
 # With all the individual forecast score_dicts, we will now
 # concatanate them all
@@ -130,7 +156,8 @@ for target_variable in target_variables:
 
 # Don't need to run this cell if the dataframes have been loaded
 # Removing AutoTheta as we just want ML models for the Ensemble Model
-ml_model_names = model_names.remove("AutoTheta")
+non_ml_models = ["AutoTheta"]
+ml_model_names = [x for x in model_names if x not in non_ml_models]
 best_models_listform = {}
 for target_variable in target_variables:
     best_models_listform[target_variable] = [

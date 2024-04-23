@@ -8,7 +8,7 @@ sites=("ARIK" "BARC" "BIGC" "BLDE" "BLUE" "BLWA" "CARI"
 
 # Training the model specified at CL at every site
 for site in "${sites[@]}"; do
-  > "logs/${site_}/$1/train_AutoTheta.log"
+  > "logs/${site}/$1/train_AutoTheta.log"
   python predict_stats.py --site "$site" --target $1 \
       &> "logs/${site}/$1/train_AutoTheta.log"
 done
