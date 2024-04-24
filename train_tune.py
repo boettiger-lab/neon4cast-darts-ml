@@ -10,6 +10,7 @@ from utils import (
 import argparse
 import pandas as pd
 import time
+import sys
 import os
 import copy
 import json
@@ -95,7 +96,7 @@ if __name__ == "__main__":
     # Loading data preprocessors for training and validation
     preprocessors = []
     for suffix in ['train', 'validate']:
-        split_date = most_recent_date_str if suffix == 'train' \
+        split_date = most_recent_date_str if suffix == 'validate' \
                         else validation_split_date
         preprocessor = TimeSeriesPreprocessor(
             input_csv_name = 'aquatics-targets.csv.gz',
@@ -105,7 +106,11 @@ if __name__ == "__main__":
         )
         preprocessor.load(args.site)
         preprocessors.append(preprocessor)
-    
+
+    if preprocessors[0].site_missing_variables != \
+         preprocessors[1].site_missing_variables:
+        print("Missing data edge case. Training not performed.")
+        sys.exit()
     
     output_name = f"{args.site}/{args.target}/{args.model}"
     
@@ -120,6 +125,7 @@ if __name__ == "__main__":
             **hyperparams_dict["model_hyperparameters"],
             **nn_arg,
         }
+        
         forecaster = BaseForecaster(
             model=args.model,
             target_variable=args.target,

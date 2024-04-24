@@ -686,15 +686,10 @@ class BaseForecaster():
             covariates = stitched_series_dict[self.covariates_names[0]]
             for cov_var in self.covariates_names[1:]:
                 covariates = covariates.concatenate(stitched_series_dict[cov_var], 
-                                                              axis=1, 
-                                                              ignore_time_axis=True)
+                                                    axis=1, 
+                                                    ignore_time_axis=True)
             covariates = covariates.median()
-
-            covs_train, _ = (
-                covariates
-                .median()
-                .split_after(self.split_date)
-            )
+            covs_train, _ = covariates.split_after(self.split_date)
         else:
             covs_train = None
             covariates = None
