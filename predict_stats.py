@@ -37,19 +37,36 @@ if __name__ == "__main__":
     # Accessing the validation split date from targets csv
     targets = pd.read_csv("aquatics-targets.csv.gz")
     most_recent_date_str = np.sort(targets['datetime'].unique())[-1]
+    most_recent_date = datetime.strptime(most_recent_date_str, '%Y-%m-%d')
+    one_year_before = most_recent_date - timedelta(days=365)
+    validation_split_date = one_year_before.strftime('%Y-%m-%d')
     
-    preprocessor = TimeSeriesPreprocessor(
-        input_csv_name = "aquatics-targets.csv.gz",
-        load_dir_name = "preprocessed_validate/",
-        s3_dict=s3_dict,
-        validation_split_date=most_recent_date_str,
-    )
-    preprocessor.load(args.site)
+    # Loading data preprocessors for training and validation
+    # Note that having different preprocessors is not required
+    # for the Theta model, but I am still loading both as to
+    # see what site to train on.
+    preprocessors = []
+    for suffix in ['train', 'validate']:
+        split_date = most_recent_date_str if suffix == 'validate' \
+                        else validation_split_date
+        preprocessor = TimeSeriesPreprocessor(
+            input_csv_name = 'aquatics-targets.csv.gz',
+            load_dir_name = f"preprocessed_{suffix}/",
+            s3_dict=s3_dict,
+            validation_split_date=split_date,
+        )
+        preprocessor.load(args.site)
+        preprocessors.append(preprocessor)
+
+    if preprocessors[0].site_missing_variables != \
+         preprocessors[1].site_missing_variables:
+        print("Missing data edge case. Training not performed.")
+        sys.exit()
 
     output_name = f"{args.site}/{args.target}/AutoTheta/model_0/"
 
     model = AutoThetaForecaster(
-        validate_preprocessor=preprocessor,
+        validate_preprocessor=preprocessors[1],
         target_variable=args.target,
         site_id=args.site,
         output_name=output_name,
