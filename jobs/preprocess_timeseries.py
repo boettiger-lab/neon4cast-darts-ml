@@ -47,25 +47,25 @@ if __name__=="__main__":
     one_year_before_str = one_year_before.strftime('%Y-%m-%d')
 
     # For the training set
-    data_preprocessor = TimeSeriesPreprocessor(
+    train_preprocessor = TimeSeriesPreprocessor(
         validation_split_date=one_year_before_str,
         load_dir_name='preprocessed_train/',
         s3_dict=s3_dict,
     )
     
-    _ = [data_preprocessor.preprocess_data(site) for site in targets.site_id.unique()]
+    _ = [train_preprocessor.preprocess_data(site) for site in targets.site_id.unique()]
     
-    data_preprocessor.save()
 
     # For the validation set
-    data_preprocessor = TimeSeriesPreprocessor(
+    validate_preprocessor = TimeSeriesPreprocessor(
         validation_split_date=most_recent_date_str,
         load_dir_name='preprocessed_validate/',
         s3_dict=s3_dict,
     )
     
-    _ = [data_preprocessor.preprocess_data(site) for site in targets.site_id.unique()]
-    
+    _ = [validate_preprocessor.preprocess_data(site) for site in targets.site_id.unique()]
+
+    train_preprocessor.save()
     data_preprocessor.save()
 
     
