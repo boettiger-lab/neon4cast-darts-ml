@@ -227,7 +227,7 @@ def modify_score_dict(csv,
         times[0], 
         forecast_horizon,
     )
-
+    
     # If there is no validation set at the site skip
     if len(validation_series) == 0:
         return score_dict
