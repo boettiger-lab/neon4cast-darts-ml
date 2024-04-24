@@ -673,7 +673,7 @@ class BaseForecaster():
         # If there was failure when filtering then we can't do preprocessing
         if self.target_variable in \
                 data_preprocessor.site_missing_variables:
-            return "Cannot fit this target time series as no GP fit was performed."
+            raise ValueError("Cannot fit this target time series as no GP fit was performed.")
         inputs = stitched_series_dict[self.target_variable]
 
         if self.covariates_names:
