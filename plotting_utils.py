@@ -685,13 +685,12 @@ def plot_improvement_bysite(score_df, metadata_df, historical=True, png_name=Non
     Returns a plot of the scoring metric difference vs. the site id;
     site type is encoded by color.
     '''
-    ## Find the percentage of forecast windows during which the ML model excelled 
-    ## the historical forecaster
-    column = (
-        'skill_historical_ml_crps' if historical \
-         else 'skill_naive_ml_rmse'
-    )
-
+    plt.figure(figsize=(12, 8))
+    color_dict = {
+        'Wadeable Stream': 'tab:blue', 
+        'Lake': 'indianred', 
+        'Non-wadeable River': 'plum'
+    }
     # Combine df's to include metadata
     df = pd.merge(
         score_df, 
@@ -699,25 +698,28 @@ def plot_improvement_bysite(score_df, metadata_df, historical=True, png_name=Non
         right_on='field_site_id', 
         left_on='site_id'
     ).drop(columns=['field_site_id'])
+
+    ## Find the percentage of forecast windows during which the ML model excelled 
+    ## the historical forecaster
+    column = (
+        'skill_historical_ml_crps' if historical \
+         else 'skill_naive_ml_rmse'
+    )
+    df['transformed_column'] = np.abs(df[column] - 1)
+    column = 'transformed_column'
     
-    plt.figure(figsize=(12, 8))
-    color_dict = {
-        'Wadeable Stream': 'tab:blue', 
-        'Lake': 'indianred', 
-        'Non-wadeable River': 'plum'
-    }
 
     for site_type in ['Wadeable Stream', 'Lake', 'Non-wadeable River']:
-        sns.boxplot(
+        sns.stripplot(
             data=df.loc[df.field_site_subtype == site_type],
             x='site_id',
             y=column,
             color=color_dict[site_type],
-            showfliers=False,
+            log_scale=2,
         )
 
     plt.grid(False)
-    plt.axhline(y=0, color='black', linestyle='dashed', linewidth=1)
+    plt.axhline(y=1, color='black', linestyle='dashed', linewidth=1)
     if historical:
         plt.ylabel("CRPSS")
     else:
@@ -743,22 +745,26 @@ def plot_global_percentages(df_, historical=True, png_name=None):
     column = (
         'skill_historical_ml_crps' if historical \
          else 'skill_naive_ml_rmse'
-    ) 
+    )
+    df_['transformed_column'] = np.abs(df_[column] - 1)
+    column = 'transformed_column'
 
-    sns.boxplot(
+    sns.stripplot(
         data=df_,
         x='model',
         y=column,
-        showfliers=False,
-        color='tab:blue'
+        color='tab:blue',
+        log_scale=2,
     )
 
     plt.grid(False)
-    plt.axhline(y=0, color='black', linestyle='dashed', linewidth=1)
+    plt.axhline(y=1, color='black', linestyle='dashed', linewidth=1)
     if historical:
-        plt.ylabel("CRPSS", fontsize=20)
+        label =  "CRPSS"
+        plt.ylabel(label, fontsize=20)
     else:
-        plt.ylabel("RMSE-SS", fontsize=20)
+        label = "RMSE"
+        plt.ylabel(label, fontsize=20)
     ax = plt.gca()
     ax.spines["left"].set_visible(True)
     ax.spines["bottom"].set_visible(True)
@@ -795,19 +801,21 @@ def plot_site_type_percentages_global(df_, metadata_df, historical=True, png_nam
     column = (
         'skill_historical_ml_crps' if historical \
          else 'skill_naive_ml_rmse'
-    ) 
+    )
+    df['transformed_column'] = np.abs(df[column] - 1)
+    column = 'transformed_column'
 
-    sns.boxplot(
+    sns.stripplot(
         data=df,
         x='field_site_subtype',
         hue='field_site_subtype',
         y=column,
-        showfliers=False,
         palette=color_dict,
+        log_scale=2,
     )
 
     plt.grid(False)
-    plt.axhline(y=0, color='black', linestyle='dashed', linewidth=1)
+    plt.axhline(y=1, color='black', linestyle='dashed', linewidth=1)
     if historical:
         plt.ylabel("CRPSS")
     else:
@@ -833,7 +841,6 @@ def plot_site_type_percentages_bymodel(df_, metadata_df, historical=True, png_na
         'Lake': 'indianred', 
         'Non-wadeable River': 'plum'
     }
-
     # Combining df's to include metadata
     df = pd.merge(
         df_, 
@@ -841,37 +848,38 @@ def plot_site_type_percentages_bymodel(df_, metadata_df, historical=True, png_na
         right_on='field_site_id', 
         left_on='site_id'
     ).drop(columns=['field_site_id'])
-
     column = (
         'skill_historical_ml_crps' if historical \
          else 'skill_naive_ml_rmse'
-    ) 
+    )
+    df['transformed_column'] = np.abs(df[column] - 1)
+    column = 'transformed_column'
 
-    sns.boxplot(
+    sns.stripplot(
         data=df,
         x='model',
         hue='field_site_subtype',
         y=column,
-        showfliers=False,
         dodge=True,
         palette=color_dict,
+        log_scale=2,
     )
 
     plt.grid(False)
-    plt.axhline(y=0, color='black', linestyle='dashed', linewidth=1)
+    plt.axhline(y=1, color='black', linestyle='dashed', linewidth=1)
     if historical:
-        plt.ylabel("CRPSS", fontsize=20)
+        plt.ylabel("|CRPSS - 1|", fontsize=18)
     else:
-        plt.ylabel("RMSE-SS", fontsize=20)
+        plt.ylabel("|RMSE-SS - 1|", fontsize=18)
     ax = plt.gca()
     ax.spines["left"].set_visible(True)
     ax.spines["bottom"].set_visible(True)
-    plt.xlabel("model", fontsize=20)
-    plt.xticks(rotation=30, fontsize=18)
-    plt.yticks(fontsize=18)
+    plt.xlabel("model", fontsize=18)
+    plt.xticks(rotation=30, fontsize=14)
+    plt.yticks(fontsize=14)
     legend_handles = [Patch(facecolor=color, edgecolor='black') for color in color_dict.values()]
     legend_labels = list(color_dict.keys())
-    plt.legend(legend_handles, legend_labels, title='Site Type', loc='lower right')
+    plt.legend(legend_handles, legend_labels, title='Site Type', loc='upper right')
     plt.tight_layout()
 
     # Saving the plot if desired
@@ -901,20 +909,22 @@ def plot_window_and_sitetype_performance(model_df, metadata_df, historical=True,
     column = (
         'skill_historical_ml_crps' if historical \
          else 'skill_naive_ml_rmse'
-    ) 
+    )
+    df['transformed_column'] = np.abs(df[column] - 1)
+    column = 'transformed_column'
 
-    sns.boxplot(
+    sns.stripplot(
         data=df,
         x='date',
         y=column,
         hue='field_site_subtype',
         palette=color_dict,
         dodge=True,
-        showfliers=False,
+        log_scale=2,
     )
 
     plt.grid(False)
-    plt.axhline(y=0, color='black', linestyle='dashed', linewidth=1)
+    plt.axhline(y=1, color='black', linestyle='dashed', linewidth=1)
     if historical:
         plt.ylabel("CRPSS")
     else:
@@ -957,20 +967,22 @@ def plot_region_percentages(df_, metadata_df, historical=True, png_name=None):
     column = (
         'skill_historical_ml_crps' if historical \
          else 'skill_naive_ml_rmse'
-    ) 
+    )
+    df['transformed_column'] = np.abs(df[column] - 1)
+    column = 'transformed_column'
     
-    sns.boxplot(
-            data=df,
-            x='region',
-            y=column,
-            hue='field_site_subtype',
-            palette=color_dict,
-            showfliers=False,
-            dodge=True,
+    sns.stripplot(
+        data=df,
+        x='region',
+        y=column,
+        hue='field_site_subtype',
+        palette=color_dict,
+        dodge=True,
+        log_scale=2,
     )
 
     plt.grid(False)
-    plt.axhline(y=0, color='black', linestyle='dashed', linewidth=1)
+    plt.axhline(y=1, color='black', linestyle='dashed', linewidth=1)
     if historical:
         plt.ylabel("CRPSS")
     else:
