@@ -863,28 +863,61 @@ def plot_site_type_percentages_bymodel(df_, metadata_df, historical=True, png_na
         dodge=True,
         palette=color_dict,
         log_scale=2,
+        legend=False,
     )
 
     plt.grid(False)
     plt.axhline(y=1, color='black', linestyle='dashed', linewidth=1)
     if historical:
-        plt.ylabel("|CRPSS - 1|", fontsize=18)
+        plt.ylabel("|CRPSS - 1|", fontsize=30)
     else:
-        plt.ylabel("|RMSE-SS - 1|", fontsize=18)
+        plt.ylabel("|RMSE-SS - 1|", fontsize=30)
     ax = plt.gca()
     ax.spines["left"].set_visible(True)
     ax.spines["bottom"].set_visible(True)
-    plt.xlabel("model", fontsize=18)
-    plt.xticks(rotation=30, fontsize=14)
-    plt.yticks(fontsize=14)
-    legend_handles = [Patch(facecolor=color, edgecolor='black') for color in color_dict.values()]
-    legend_labels = list(color_dict.keys())
-    plt.legend(legend_handles, legend_labels, title='Site Type', loc='upper right')
+    plt.xlabel("model", fontsize=30)
+    plt.xticks(rotation=30, fontsize=24)
+    plt.yticks(fontsize=24)
     plt.tight_layout()
 
     # Saving the plot if desired
     if png_name:
         save_fig(plt, png_name)
+
+    plt.clf()
+
+    # Create a figure and axis for the legend plot
+    legend_fig, legend_ax = plt.subplots(figsize=(26,2))  # Adjust size as needed
+    
+    # Extract model names and colors from color_palette
+    models = list(color_dict.keys())
+    colors = list(color_dict.values())
+    
+    # Plot lines for each model with corresponding colors
+    legend_lines = [Line2D([0], [0], marker='o', color=color, markersize=22, linestyle='') for color in colors]
+    
+    # Create legend with circles and model names, orient horizontally with 1 column
+    legend_ax.legend(
+        legend_lines, 
+        models, 
+        loc='center', 
+        fontsize=30, 
+        ncol=len(models), 
+        handlelength=1,
+        handletextpad=0.02,
+        bbox_to_anchor=(0.5, 0.5),
+        labelspacing=4
+    )
+    
+    # Customize legend appearance
+    legend_ax.axis('off')  # Hide axis
+    
+    # Show the plot
+    plt.tight_layout()
+    
+    # Saving the legend plot if desired
+    if png_name:
+        save_fig(plt, 'sitetype_legend')
 
 def plot_window_and_sitetype_performance(model_df, metadata_df, historical=True, png_name=None):
     '''
@@ -933,11 +966,6 @@ def plot_window_and_sitetype_performance(model_df, metadata_df, historical=True,
     ax.spines["left"].set_visible(True)
     ax.spines["bottom"].set_visible(True)
     plt.xticks(rotation=30)
-    legend_handles = [
-        Patch(facecolor=color, edgecolor='black') for color in color_dict.values()
-    ]
-    legend_labels = list(color_dict.keys())
-    plt.legend(legend_handles, legend_labels, title='Site Type', loc='lower right')
     plt.tight_layout()
 
     # Saving the plot if desired
@@ -991,11 +1019,6 @@ def plot_region_percentages(df_, metadata_df, historical=True, png_name=None):
     ax.spines["left"].set_visible(True)
     ax.spines["bottom"].set_visible(True)
     plt.xticks(rotation=30)
-    legend_handles = [
-        Patch(facecolor=color, edgecolor='black') for color in color_dict.values()
-    ]
-    legend_labels = list(color_dict.keys())
-    plt.legend(legend_handles, legend_labels, title='Site Type', loc='lower right')
     plt.tight_layout()
 
     # Saving the plot if desired
@@ -1009,21 +1032,29 @@ def plot_crps_over_time_agg(intra_df, historical=True, png_name=None):
     else:
         metric = 'ae'
     # Group by 't' and 'model' and calculate the mean and percentiles
-    summary_df = intra_df.groupby(['t'])[f'value_skill_{metric}'].agg([lambda x: x.quantile(0.05),
+    summary_df = intra_df.groupby(['t', 'model'])[f'value_skill_{metric}'].agg([lambda x: x.quantile(0.05),
                                                                   lambda x: x.quantile(0.5),
                                                                   lambda x: x.quantile(0.95)]).reset_index()
     
     # Rename the columns for better clarity
-    summary_df.columns = ['t', '5th_percentile', '50th_percentile', '95th_percentile']
+    summary_df.columns = ['t', 'model', '5th_percentile', '50th_percentile', '95th_percentile']
+
+    # Handling colors
+    # Generate a Seaborn color palette
+    palette = sns.color_palette("tab10", n_colors=len(summary_df['model'].unique()))
+
+    # Create a dictionary mapping unique models to colors
+    color_palette = dict(zip(summary_df['model'].unique(), palette))
     
     # Plot the median line separately to avoid shading it
     sns.lineplot(
         data=summary_df,
         x='t',
         y='50th_percentile',
+        hue='model',
+        linewidth=4,
+        palette=color_palette,
         legend=False,
-        color='#1f77b4',
-        linewidth=6,
     )
     
     # Customize plot appearance
@@ -1033,14 +1064,44 @@ def plot_crps_over_time_agg(intra_df, historical=True, png_name=None):
     ax.spines["bottom"].set_visible(True)
     plt.axhline(y=0, color='black', linestyle='dashed', linewidth=1)
     if metric == 'ae':
-        plt.ylabel("AbsErr-SS", fontsize=40)
+        plt.ylabel("AbsErr-SS", fontsize=34)
     elif metric == 'crps':
-        plt.ylabel("CRPSS", fontsize=40)
-    plt.xlabel("t", fontsize=40)
-    plt.xticks(fontsize=38)
-    plt.yticks(fontsize=38)
+        plt.ylabel("CRPSS", fontsize=34)
+    plt.xlabel("t", fontsize=34)
+    plt.xticks(fontsize=28)
+    plt.yticks(fontsize=28)
     plt.tight_layout()
 
     # Saving the plot if desired
     if png_name:
         save_fig(plt, png_name)
+    plt.clf()
+
+    # Create a figure and axis for the legend plot
+    legend_fig, legend_ax = plt.subplots(figsize=(12, 8))  # Adjust size as needed
+    
+    # Extract model names and colors from color_palette
+    models = list(color_palette.keys())
+    colors = list(color_palette.values())
+    
+    # Plot lines for each model with corresponding colors
+    legend_lines = [Line2D([0], [0], color=color, linewidth=9) for color in colors]
+    
+    # Create legend with lines and model names
+    legend_ax.legend(
+        legend_lines, 
+        models, 
+        loc='center', 
+        fontsize=34,
+        bbox_to_anchor=(0, 0.5)
+    )
+    
+    # Customize legend appearance
+    legend_ax.axis('off')  # Hide axis
+    
+    # Show the plot
+    plt.tight_layout()
+    
+    # Saving the legend plot if desired
+    if png_name:
+        save_fig(plt, 'intra_legend')
