@@ -12,8 +12,9 @@ class AutoThetaForecaster():
     def __init__(self,
                  validate_preprocessor: Optional = None,
                  target_variable: Optional[str] = None,
-                 season_length: Optional[int] = 365,
-                 input_chunk_length: Optional[int] = 365*5,
+                 season_length: Optional[int] = 1,
+                 decomposition_type: Optional[str] = 'additive',
+                 input_chunk_length: Optional[int] = 31,
                  output_name: Optional[str] = "default",
                  forecast_horizon: Optional[int] = 30,
                  site_id: Optional[str] = None,
@@ -24,6 +25,7 @@ class AutoThetaForecaster():
         self.validate_preprocessor = validate_preprocessor
         self.s3_dict = s3_dict
         self.season_length = season_length
+        self.decomposition_type = decomposition_type
         self.input_chunk_length = input_chunk_length
         self.target_variable = target_variable
         self.output_name = output_name
@@ -79,7 +81,10 @@ class AutoThetaForecaster():
         This function fits a Darts model to the training_set
         """
 
-        self.model = StatsForecastAutoTheta(season_length=self.season_length)
+        self.model = StatsForecastAutoTheta(
+            season_length=self.season_length,
+            decomposition_type=self.decomposition_type,
+        )
         predict_series = self.get_predict_set(self.input_chunk_length)
 
         predictions = []

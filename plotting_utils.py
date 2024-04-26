@@ -578,16 +578,16 @@ def plot_forecast(date,
     historical_model.forecast_ts.plot(label="Historical", color=colors[1])
     validation_series.plot(label="Truth", color=colors[2])
 
-    # And the naive forecaster
-    naive_model = NaivePersistenceForecaster(
-        targets=targets_df,
-        site_id=site_id,
-        target_variable=target_variable,
-        validation_split_date=str(model_forecast.time_index[0])[:10],
-        forecast_horizon=len(model_forecast),
-    )
-    naive_model.make_forecasts()
-    naive_model.forecast_ts.plot(label='Naive Persistence', color=colors[3])
+    ## And the naive forecaster
+    #naive_model = NaivePersistenceForecaster(
+    #    targets=targets_df,
+    #    site_id=site_id,
+    #    target_variable=target_variable,
+    #    validation_split_date=str(model_forecast.time_index[0])[:10],
+    #    forecast_horizon=len(model_forecast),
+    #)
+    #naive_model.make_forecasts()
+    #naive_model.forecast_ts.plot(label='Naive Persistence', color=colors[3])
     
     x = plt.xlabel("date")
     y = plt.ylabel(target_variable)
