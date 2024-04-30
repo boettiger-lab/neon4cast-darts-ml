@@ -23,6 +23,7 @@ from darts.metrics import rmse
 import matplotlib as mpl
 from sklearn.cluster import KMeans
 from datetime import datetime
+import random
 
 pd.options.mode.chained_assignment = None
 
@@ -532,9 +533,17 @@ def plot_forecast(date,
     in addition to the observed values, the climatology forecast and the naive persistence
     forecast.
     '''
+    #plt.figure(figsize=(12, 8))
+    
     cmap = mpl.colormaps["tab10"]
     colors = cmap.colors
-    dfs = []
+    if model == 'AutoTheta':
+        color = colors[0]
+    elif model == 'NaiveEnsemble':
+        color = colors[9]
+    elif model == 'TFT':
+        color = colors[4]
+    
     for i, id_ in enumerate(id_list):
         # Loading the forecast csv and creating a time series
         if s3_dict['client']:
@@ -552,7 +561,7 @@ def plot_forecast(date,
         model_forecast = TimeSeries.from_times_and_values(times, 
                                                           values, 
                                                           fill_missing_dates=True, freq="D")
-        model_forecast.plot(label=f"{model}", color=colors[0])
+        model_forecast.plot(color=color)
 
     # Getting the validation series directly from the targets csv
     date = model_forecast.time_index[0]
@@ -575,8 +584,8 @@ def plot_forecast(date,
         forecast_horizon=len(model_forecast),
     )
     historical_model.make_forecasts()
-    historical_model.forecast_ts.plot(label="Historical", color=colors[1])
-    validation_series.plot(label="Truth", color=colors[2])
+    historical_model.forecast_ts.plot(color=colors[1])
+    validation_series.plot(color=colors[2])
 
     ## And the naive forecaster
     #naive_model = NaivePersistenceForecaster(
@@ -591,20 +600,22 @@ def plot_forecast(date,
     
     x = plt.xlabel("date")
     y = plt.ylabel(target_variable)
+    plt.legend().remove()
     # Creating a legend and then removing duplicates
     ax = plt.gca()
-    handles, labels = plt.gca().get_legend_handles_labels()
-    unique_labels = []
-    unique_handles = []
-    for i, label in enumerate(labels):
-        if label not in unique_labels:
-            unique_labels.append(label)
-            unique_handles.append(handles[i])
-    
-    plt.legend(unique_handles, unique_labels, loc='lower right')
     ax.spines["left"].set_visible(True)
     ax.spines["bottom"].set_visible(True)
     plt.grid(False)
+
+    if target_variable == 'chla':
+        plt.ylabel("Chlorophyll-A", fontsize=16)
+    elif target_variable == 'temperature':
+        plt.ylabel("Water Temperature", fontsize=16)
+    elif target_variable == 'oxygen':
+        plt.ylabel("Oxygen", fontsize=16)
+    plt.xlabel("Date", fontsize=16)
+    plt.xticks(fontsize=14)
+    plt.yticks(fontsize=14)
 
     # Saving the plot if desired
     if png_name:
@@ -888,6 +899,11 @@ def plot_site_type_percentages_bymodel(df_, metadata_df, historical=True, png_na
 
     # Create a figure and axis for the legend plot
     legend_fig, legend_ax = plt.subplots(figsize=(26,2))  # Adjust size as needed
+
+    flag = 0
+    if random.random() < 0.5:
+        del color_dict['Wadeable Stream']
+        flag = 1
     
     # Extract model names and colors from color_palette
     models = list(color_dict.keys())
@@ -904,7 +920,7 @@ def plot_site_type_percentages_bymodel(df_, metadata_df, historical=True, png_na
         fontsize=30, 
         ncol=len(models), 
         handlelength=1,
-        handletextpad=0.02,
+        handletextpad=0.4,
         bbox_to_anchor=(0.5, 0.5),
         labelspacing=4
     )
@@ -917,7 +933,8 @@ def plot_site_type_percentages_bymodel(df_, metadata_df, historical=True, png_na
     
     # Saving the legend plot if desired
     if png_name:
-        save_fig(plt, 'sitetype_legend')
+        save_fig(plt, f'sitetype_legend_{flag}')
+            
 
 def plot_window_and_sitetype_performance(model_df, metadata_df, historical=True, png_name=None):
     '''
@@ -1052,7 +1069,7 @@ def plot_crps_over_time_agg(intra_df, historical=True, png_name=None):
         x='t',
         y='50th_percentile',
         hue='model',
-        linewidth=4,
+        linewidth=6,
         palette=color_palette,
         legend=False,
     )
@@ -1105,3 +1122,47 @@ def plot_crps_over_time_agg(intra_df, historical=True, png_name=None):
     # Saving the legend plot if desired
     if png_name:
         save_fig(plt, 'intra_legend')
+
+def make_forecast_legend():
+    cmap = mpl.colormaps["tab10"]
+    colors = cmap.colors
+    legend_fig, legend_ax = plt.subplots(figsize=(26,2))  # Adjust size as needed
+    
+    # Extract model names and colors from color_palette
+    models = [
+        'AutoTheta',
+        'TFT',
+        'NaiveEnsemble',
+        'Historical',
+        'Observed',
+    ]
+    colors = [
+        colors[0],
+        colors[4],
+        colors[9],
+        colors[1],
+        colors[2],
+    ]
+    
+    # Plot lines for each model with corresponding colors
+    legend_lines = [Line2D([0], [0], marker='s', color=color, markersize=22, linestyle='') for color in colors]
+    
+    # Create legend with circles and model names, orient horizontally with 1 column
+    legend_ax.legend(
+        legend_lines, 
+        models, 
+        loc='center', 
+        fontsize=30, 
+        ncol=len(models), 
+        handlelength=1,
+        handletextpad=0.4,
+        bbox_to_anchor=(0.5, 0),
+        labelspacing=4
+    )
+    
+    # Customize legend appearance
+    legend_ax.axis('off')  # Hide axis
+    
+    # Tidy and save
+    plt.tight_layout()
+    plt.savefig('plots/forecast_legend')

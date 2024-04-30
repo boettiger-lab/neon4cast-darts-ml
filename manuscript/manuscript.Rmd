@@ -80,7 +80,7 @@ The ML models are configured to generate probabilistic forecasts. The neural net
   \centering
   \begin{subfigure}{\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../plots/sitetype_legend.png}
+    \includegraphics[width=\textwidth]{../plots/sitetype_legend_0.png}
   \end{subfigure}
   \begin{subfigure}{0.49\textwidth}
     \centering
@@ -97,7 +97,7 @@ The ML models are configured to generate probabilistic forecasts. The neural net
   \centering
   \begin{subfigure}{\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../plots/sitetype_legend.png}
+    \includegraphics[width=\textwidth]{../plots/sitetype_legend_0.png}
   \end{subfigure}
   \begin{subfigure}{0.49\textwidth}
     \centering
@@ -114,7 +114,7 @@ The ML models are configured to generate probabilistic forecasts. The neural net
   \centering
   \begin{subfigure}{\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../plots/sitetype_legend.png}
+    \includegraphics[width=\textwidth]{../plots/sitetype_legend_1.png}
   \end{subfigure}
   \begin{subfigure}{0.49\textwidth}
     \centering
@@ -176,17 +176,33 @@ The ML models are configured to generate probabilistic forecasts. The neural net
   \centering
   \begin{subfigure}{\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../plots/sitetype_legend.png}
+    \includegraphics[width=\textwidth]{../plots/forecast_legend.png}
   \end{subfigure}
   \begin{subfigure}{0.49\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../plots/global_loc_historical_oxygen.png}
+    \includegraphics[width=\textwidth]{../plots/oxygen_theta.png}
   \end{subfigure}
   \begin{subfigure}{0.49\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../plots/date_type_global_historical_oxygen.png}
+    \includegraphics[width=\textwidth]{../plots/chla_theta.png}
   \end{subfigure}
-  \caption{Global performance on oxygen}
+  \begin{subfigure}{0.49\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{../plots/oxygen_tft.png}
+  \end{subfigure}
+  \begin{subfigure}{0.49\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{../plots/chla_tft.png}
+  \end{subfigure}
+  \begin{subfigure}{0.49\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{../plots/oxygen_ensemble.png}
+  \end{subfigure}
+  \begin{subfigure}{0.49\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{../plots/chla_ensemble.png}
+  \end{subfigure}
+  \caption{Individual Forecast Examples}
 \end{figure}
 
 

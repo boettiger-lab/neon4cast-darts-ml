@@ -10,6 +10,7 @@ from plotting_utils import (
     plot_window_and_sitetype_performance,
     generate_metadata_df,
     plot_crps_over_time_agg,
+    make_forecast_legend,
 )
 import pandas as pd
 from utils import (
@@ -80,6 +81,8 @@ for target_variable in target_variables:
                 [model, int(df[df['model'] == model]['model_id'].unique())] for model in model_names
             ]
 
+# Generate legend for individual forecasts
+make_forecast_legend()
 
 for target_variable in target_variables:
     # These plots incorporate forecasts from all models
