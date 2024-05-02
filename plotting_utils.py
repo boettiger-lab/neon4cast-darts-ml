@@ -483,20 +483,19 @@ def score_improvement_bysite(model,
         1 - (rmse_merged['value_historical'] / rmse_merged['value_naive'])
     )
 
-    import pdb; pdb.set_trace()
     # Delete unnecessary columns
-    #rmse_merged = rmse_merged.drop(
-    #    rmse_merged.filter(like='model').columns, 
-    #    axis=1
-    #)
+    rmse_merged = rmse_merged.drop(
+        rmse_merged.filter(like='model').columns, 
+        axis=1
+    )
     #rmse_merged = rmse_merged.drop(
     #    rmse_merged.filter(like='value').columns, 
     #    axis=1
     #)
-    #crps_merged = crps_merged.drop(
-    #    crps_merged.filter(like='model').columns, 
-    #    axis=1
-    #)
+    crps_merged = crps_merged.drop(
+        crps_merged.filter(like='model').columns, 
+        axis=1
+    )
     #crps_merged = crps_merged.drop(
     #    crps_merged.filter(like='value').columns, 
     #    axis=1
@@ -508,7 +507,8 @@ def score_improvement_bysite(model,
         crps_merged, 
         rmse_merged, 
         on=['site_id', 'date'], 
-        how='inner'
+        how='inner',
+        suffixes=('_crps', '_rmse')
     )
     merged_df = merged_df.drop(
         merged_df.filter(like='metric').columns, 
@@ -518,7 +518,6 @@ def score_improvement_bysite(model,
     intra_merged['model'] = model
     merged_df['model_id'] = id_
     intra_merged['model_id'] = id_
-
 
     return merged_df, intra_merged
     
@@ -543,7 +542,7 @@ def plot_forecast(date,
         color = colors[0]
     elif model == 'NaiveEnsemble':
         color = colors[9]
-    elif model == 'TFT':
+    else:
         color = colors[4]
     
     for i, id_ in enumerate(id_list):
