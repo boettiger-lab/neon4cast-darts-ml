@@ -213,6 +213,31 @@ for target_variable in target_variables:
         ignore_index=True,
     )
 
+    # Now finding mean CRPS and RMSE
+    crps_df = best_performers_dfs[target_variable]['inter'].groupby(['model'])['value_forecast_crps'].mean()
+    crps_hist_df = best_performers_dfs[target_variable]['inter'].groupby(['model'])['value_historical_crps'].mean()
+    rmse_df = best_performers_dfs[target_variable]['inter'].groupby(['model'])['value_forecast_rmse'].mean()
+    rmse_hist_df = best_performers_dfs[target_variable]['inter'].groupby(['model'])['value_historical_rmse'].mean()
+    rmse_naive_df = best_performers_dfs[target_variable]['inter'].groupby(['model'])['value_naive'].mean()
+    means_df = pd.merge(crps_df, crps_hist_df, on='model')
+    for df in [rmse_df, rmse_hist_df, rmse_naive_df]:
+        means_df = pd.merge(means_df, df, on='model')
+    means_df.reset_index(inplace=True)
+    means_df.rename(columns={'index': 'model'}, inplace=True)
+    if s3_client:
+        upload_df_to_s3(
+            f'dataframes/{target_variable}_means.csv', 
+            means_df, 
+            s3_dict=s3_dict,
+        )
+    else:
+        if not os.path.exists('dataframes/'):
+            os.makedirs('dataframes/')
+        means_df.to_csv(
+            f'dataframes/{target_variable}_means.csv',
+            index=False
+        )
+
 # And saving (remotely)
 if s3_client:
     for target_variable in target_variables:
@@ -223,8 +248,6 @@ if s3_client:
                 s3_dict=s3_dict,
             )
 else:
-    if not os.path.exists('dataframes/'):
-        os.makedirs('dataframes/')
     for target_variable in target_variables:
         for pos in ['inter', 'intra']:
             best_performers_dfs[target_variable][pos].to_csv(

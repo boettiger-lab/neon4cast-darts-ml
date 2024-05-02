@@ -76,6 +76,79 @@ The ML models are configured to generate probabilistic forecasts. The neural net
 
 # Results
 
+\begin{table}[!htbp]
+    \centering
+    \caption{Mean CRPS and RMSE}
+    \begin{subtable}{\textwidth}
+        \centering
+        \caption{Dissolved Oxygen}
+        \begin{tabular}{lcc}
+            \toprule
+            Model & Mean CRPS & Mean RMSE \\
+            \midrule
+            Climatology & 0.62 & 0.92 \\
+            Naive Persistence & & 1.55 \\
+            AutoTheta & 0.67 & 1.02 \\
+            BlockRNN & 0.52 & 0.80 \\
+            DLinear & 0.52 & 0.81  \\
+            NBEATS & 0.51 & 0.80 \\
+            NLinear & 0.52 & 0.80 \\
+            \textbf{NaiveEnsemble} & \textbf{0.47} & \textbf{0.74} \\
+            RNN & 0.60 & 0.92 \\
+            TCN & 0.62 & 0.98 \\
+            TFT & 0.52 & 0.80 \\
+            Transformer & 0.51 & 0.80 \\
+            \bottomrule
+        \end{tabular}
+    \end{subtable}
+    \begin{subtable}{\textwidth}
+        \centering
+        \caption{Water Temperature}
+        \begin{tabular}{lcc}
+            \toprule
+            Model & Mean CRPS & Mean RMSE \\
+            \midrule
+            Climatology & 1.46 & 2.19 \\
+            Naive Persistence & & 6.05 \\
+            AutoTheta & 1.55 & 2.35 \\
+            BlockRNN & 1.45 & 2.26 \\
+            DLinear & 1.35 & 2.08 \\
+            NBEATS & 1.36 & 2.10 \\
+            NLinear & 1.33 & 2.06 \\
+            \textbf{NaiveEnsemble} & \textbf{1.18} & \textbf{1.80} \\
+            RNN & 1.32 & 2.03 \\
+            TCN & 1.89 & 3.02 \\
+            TFT & 1.19 & 1.86 \\
+            Transformer & 1.32 & 2.05 \\
+            \bottomrule
+        \end{tabular}
+    \end{subtable}
+    \begin{subtable}{\textwidth}
+        \centering
+        \caption{Chlorophyll-a}
+        \begin{tabular}{lcc}
+            \toprule
+            Model & Mean CRPS & Mean RMSE \\
+            \midrule
+            Climatology & 4.83 & 7.50 \\
+            \textbf{Naive Persistence} & & \textbf{4.86} \\
+            AutoTheta &  4.20 & 6.31 \\
+            \textbf{BlockRNN} & \textbf{3.14} & 5.16 \\
+            DLinear & 3.47 & 5.48 \\
+            NBEATS & 3.78 & 5.95 \\
+            NLinear & 3.67 & 5.63 \\
+            NaiveEnsemble & 3.44 & 5.50 \\
+            RNN & 4.15 & 6.40 \\
+            TCN & 3.72 & 5.77 \\
+            TFT & 3.67 & 5.87 \\
+            Transformer & 4.02 & 6.35 \\
+            \bottomrule
+        \end{tabular}
+    \end{subtable}
+    \label{tab:mean_crps_rmse}
+\end{table}
+
+
 \begin{figure}[!htbp]
   \centering
   \begin{subfigure}{\textwidth}

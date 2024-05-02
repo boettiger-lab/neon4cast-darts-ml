@@ -488,18 +488,18 @@ def score_improvement_bysite(model,
         rmse_merged.filter(like='model').columns, 
         axis=1
     )
-    rmse_merged = rmse_merged.drop(
-        rmse_merged.filter(like='value').columns, 
-        axis=1
-    )
+    #rmse_merged = rmse_merged.drop(
+    #    rmse_merged.filter(like='value').columns, 
+    #    axis=1
+    #)
     crps_merged = crps_merged.drop(
         crps_merged.filter(like='model').columns, 
         axis=1
     )
-    crps_merged = crps_merged.drop(
-        crps_merged.filter(like='value').columns, 
-        axis=1
-    )
+    #crps_merged = crps_merged.drop(
+    #    crps_merged.filter(like='value').columns, 
+    #    axis=1
+    #)
 
     # Joining the two df's along site id and date then adding a combined improvement column
     # for comparison against the climatology model
@@ -507,7 +507,8 @@ def score_improvement_bysite(model,
         crps_merged, 
         rmse_merged, 
         on=['site_id', 'date'], 
-        how='inner'
+        how='inner',
+        suffixes=('_crps', '_rmse')
     )
     merged_df = merged_df.drop(
         merged_df.filter(like='metric').columns, 
@@ -541,7 +542,7 @@ def plot_forecast(date,
         color = colors[0]
     elif model == 'NaiveEnsemble':
         color = colors[9]
-    elif model == 'TFT':
+    else:
         color = colors[4]
     
     for i, id_ in enumerate(id_list):

@@ -83,7 +83,6 @@ for target_variable in target_variables:
 
 # Generate legend for individual forecasts
 make_forecast_legend()
-
 for target_variable in target_variables:
     # These plots incorporate forecasts from all models
     plot_crps_over_time_agg(
