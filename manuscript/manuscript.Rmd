@@ -58,7 +58,7 @@ There are many promising neural network architectures that have not been evaluat
 
 # Materials and Methods
 
-We evaluated the forecasting performance of 11 different models on water temperature, dissolved oxygen and chlorophyll-A time series, which were collected by in-situ sensors at 34 freshwater sites across North America. These sites consist of Lakes, Non-wadeable Rivers and Wadeable Streams, subtypes classified by NEON. There is variability across sites in which target variables were observed. Additionally, maintenance issues led to gaps in the data which also varied with the site. Since the training data spanned less than 3 years, we excluded time series that had gaps longer than a year. Provided the lack of time series and large gaps at certain sites, we evaluated the forecast performance for water temperature, dissolved oxygen and chlorophyll-A at 33, 32 and 9 sites, respectively. 
+We evaluated the forecasting performance of 11 different models on water temperature, dissolved oxygen and chlorophyll-A time series, which were collected by in-situ sensors at 34 freshwater sites across North America. These sites consist of Lakes, Non-wadeable Rivers and Wadeable Streams, subtypes classified by NEON. There is variability across sites in which target variables were observed. Additionally, maintenance issues led to gaps in the data which also varied across locations. Provided the lack of time series and large gaps at certain sites, we evaluated the forecast performance for water temperature, dissolved oxygen and chlorophyll-A at 33, 32 and 9 sites, respectively. 
 
 The imputation of missing data proved to be critical to the performance of the ML models. After experimenting with data filling methods that resulted in poor model performance, we developed an imputation method inspired by the climatology model. If the gap size was less than 5 days, then the gap was filled using a Gaussian Process Filter. For gaps over 5 days, missing data was estimated using the daily historical mean when this statistic is available; and, for the case when there are no data collected for a day of the year, either the monthly median, quarterly median, previous observation or global median was used in this order of preference.
 
@@ -66,16 +66,17 @@ We compared the performance of the neural network models to the climatology and 
 \begin{equation}
 CRPSS_{model} = 1 - \frac{CRPS_{model}}{CRPS_{clim.}}.
 \end{equation}
-
 And using the naive persistence model as a reference, we computed the RMSE Skill Score,
-
 \begin{equation}
 RMSE-SS_{model} = 1 - \frac{RMSE_{model}}{RMSE_{naive.}}.
 \end{equation}
+If a target model outperforms the reference model, then the target model will have a positive skill score. If the target model performs worse than the reference model, the skill score will be negative.
 
-If a target model outperforms than the reference model, then the target model will have a positive skill score. If the target model performs worse than the reference model, the skill score will be negative.
+## Method Group 1: Statistical Models (Theta)
 
-Talk about theta model
+
+
+## Method Group 2: Neural Network Models
 
 For the 8 neural network models that were investigated, there were varying design choices made regarding which type of covariates could be used. For instance, models could accept past covariates only, future covariates only or both future and past covariates. 
 
@@ -83,8 +84,6 @@ For the models that accept past covariates (**list these models**), we used the 
 
 
 We provide fully reproducible code for fitting, scoring and visualizing the forecasts. All the machine learning forecasts were generated using the `darts` python library. `darts` is similar to other libraries `scikit-learn` in Python or `tidymodels` in R that allow users to easily employ time series forecasting models without having to implement them. For model comparison, we rely on the `CRPS` library in Python to efficiently compute the continuous ranked probability scores (CRPS). When comparing the probabilistic forecasts, we express the CRPS score in error-orientation -- i.e., a lower CRPS indicates a smaller margin of error.
-
-## Machine Learning Models
 
 All the machine learning algorithms that are used in this study are based on neural network architectures. Neural networks have the property of being universal function approximators, so theoretically, it is possible that all of these models could exactly approximate the data generating process \cite{}. Yet, it is often true that neural networks greatly underperform their function approximation capabilities in practice \cite{adcock, makridakis}. This performance gap can be due to a variety of reasons including overfitting and insufficient hyperparameter tuning \cite{adcock}. The discrepancy between theory and practice in function approximation with neural networks motivates research on how machine learning models perform in specific domains.
 
