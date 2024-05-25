@@ -64,11 +64,11 @@ The imputation of missing data proved to be critical to the performance of the M
 
 We compared the performance of the neural network models to the climatology and naive persistence model. The climatology model generates forecasts by finding the daily mean and standard deviation and draws samples from a Gaussian Distribution with these parameters. The naive persistence model finds the last observed value of the target variable and predicts this value for each day in the forecast horizon. For each model, we computed the Continuous Ranked Probability Score (CRPS) and the Root Mean Square Error (RMSE). To gauge how models performed in relation to the climatology model, we computed the Continuous Ranked Probability Skill Score (CRPSS) which we defined as 
 \begin{equation}
-CRPSS_{model} = 1 - \frac{CRPS_{model}}{CRPS_{clim.}}.
+CRPSS_{model} = 1 - \frac{CRPS_{model}}{CRPS_{clim}}.
 \end{equation}
 And using the naive persistence model as a reference, we computed the RMSE Skill Score,
 \begin{equation}
-RMSE-SS_{model} = 1 - \frac{RMSE_{model}}{RMSE_{naive.}}.
+RMSE-SS_{model} = 1 - \frac{RMSE_{model}}{RMSE_{naive}}.
 \end{equation}
 If a target model outperforms the reference model, then the target model will have a positive skill score. If the target model performs worse than the reference model, the skill score will be negative.
 
