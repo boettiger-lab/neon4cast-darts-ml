@@ -29,10 +29,10 @@ def read_credentials_from_json(file_path):
         credentials = json.load(f)
     return credentials.get('accessKey'), credentials.get('secretKey')
 
-def upload_df_to_s3(object_name, dataframe, s3_dict={'client': None, 'bucket': None}):
+def upload_df_to_s3(object_name, dataframe, s3_dict={'client': None, 'bucket': None}, index=False):
     # Convert DataFrame to CSV format in memory
     csv_buffer = StringIO()
-    dataframe.to_csv(csv_buffer, index=False)
+    dataframe.to_csv(csv_buffer, index=index)
     
     s3_dict['client'].put_object(
         Bucket=s3_dict['bucket'], 

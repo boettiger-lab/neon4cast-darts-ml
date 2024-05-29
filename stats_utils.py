@@ -101,6 +101,6 @@ class AutoThetaForecaster():
                            prediction.time_index[0].strftime('%Y_%m_%d.csv')
             df = prediction.pd_dataframe(suppress_warnings=True)
             if self.s3_dict['client']:
-                upload_df_to_s3(csv_name, df, self.s3_dict)
+                upload_df_to_s3(csv_name, df, self.s3_dict, index=True)
             else:
                 df.to_csv(csv_name)
