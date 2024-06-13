@@ -185,15 +185,15 @@ When examining the performance of the models within a forecast horizon, addition
   \centering
   \begin{subfigure}{\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../plots/sitetype_legend_0.png}
+    \includegraphics[width=\textwidth]{./plots/sitetype_legend_0.png}
   \end{subfigure}
   \begin{subfigure}{0.49\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../plots/type_local_historical_oxygen.png}
+    \includegraphics[width=\textwidth]{./plots/type_local_historical_oxygen.png}
   \end{subfigure}
   \begin{subfigure}{0.49\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../plots/type_local_naive_oxygen.png}
+    \includegraphics[width=\textwidth]{./plots/type_local_naive_oxygen.png}
   \end{subfigure}
   \caption{Skill score distributions for dissolved oxygen. The CRPSS plot measures the CRPS skill relative to the climatology model. The RMSE-SS plot measures the RMSE skill relative to the naive persistence model. A guideline is plotted at the threshold for underperformance: a score above this line denotes that a forecast is underperforming the reference model; a score below this line denotes that a forecast is outperforming the reference model. The AutoTheta model exhibits longer tails relative to most of the neural network models, indicating that AutoTheta has a larger amount of forecasts that do either very well or very poorly. The neural network models tend to have shorter tails in the underperforming region.}
 \end{figure}
@@ -202,15 +202,15 @@ When examining the performance of the models within a forecast horizon, addition
   \centering
   \begin{subfigure}{\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../plots/sitetype_legend_0.png}
+    \includegraphics[width=\textwidth]{./plots/sitetype_legend_0.png}
   \end{subfigure}
   \begin{subfigure}{0.49\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../plots/type_local_historical_temperature.png}
+    \includegraphics[width=\textwidth]{./plots/type_local_historical_temperature.png}
   \end{subfigure}
   \begin{subfigure}{0.49\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../plots/type_local_naive_temperature.png}
+    \includegraphics[width=\textwidth]{./plots/type_local_naive_temperature.png}
   \end{subfigure}
   \caption{Skill score distributions for water temperature. AutoTheta does not have the long tails as seen in the skill score distributions for dissolved oxygen and chlorophyll-a, instead the neural network models have heavier tails in the outperforming region. This indicates that the neural network models are producing high accuracy forecasts more frequently than the AutoTheta model.}
 \end{figure}
@@ -219,15 +219,15 @@ When examining the performance of the models within a forecast horizon, addition
   \centering
   \begin{subfigure}{\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../plots/sitetype_legend_1.png}
+    \includegraphics[width=\textwidth]{./plots/sitetype_legend_1.png}
   \end{subfigure}
   \begin{subfigure}{0.49\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../plots/type_local_historical_chla.png}
+    \includegraphics[width=\textwidth]{./plots/type_local_historical_chla.png}
   \end{subfigure}
   \begin{subfigure}{0.49\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../plots/type_local_naive_chla.png}
+    \includegraphics[width=\textwidth]{./plots/type_local_naive_chla.png}
   \end{subfigure}
   \caption{Skill score distributions for chlorophyll-a. The neural network models have shorter tails in the underperforming region relative to AutoTheta, indicating that the neural network models are producing a smaller amount of inaccurate forecasts. The naive persistence null model attained the lowest RMSE on chlorophyll-a, and this is apparent in the RMSE-SS plot as the models have skill score distributions that are generally centered above the underperformance threshold.}
 \end{figure}
@@ -236,11 +236,11 @@ When examining the performance of the models within a forecast horizon, addition
   \centering
   \begin{subfigure}{0.3\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../plots/intra_historical_oxygen.png}
+    \includegraphics[width=\textwidth]{./plots/intra_historical_oxygen.png}
   \end{subfigure}
   \begin{subfigure}{0.3\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../plots/intra_naive_oxygen.png}
+    \includegraphics[width=\textwidth]{./plots/intra_naive_oxygen.png}
   \end{subfigure}
   \begin{subfigure}{0.3\textwidth}
     \centering
@@ -248,23 +248,23 @@ When examining the performance of the models within a forecast horizon, addition
   \end{subfigure}
   \begin{subfigure}{0.3\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../plots/intra_historical_temperature.png}
+    \includegraphics[width=\textwidth]{./plots/intra_historical_temperature.png}
   \end{subfigure}
   \begin{subfigure}{0.3\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../plots/intra_naive_temperature.png}
+    \includegraphics[width=\textwidth]{./plots/intra_naive_temperature.png}
   \end{subfigure}
   \begin{subfigure}{0.3\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../plots/intra_legend.png}
+    \includegraphics[width=\textwidth]{./plots/intra_legend.png}
   \end{subfigure}
   \begin{subfigure}{0.3\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../plots/intra_historical_chla.png}
+    \includegraphics[width=\textwidth]{./plots/intra_historical_chla.png}
   \end{subfigure}
   \begin{subfigure}{0.3\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../plots/intra_naive_chla.png}
+    \includegraphics[width=\textwidth]{./plots/intra_naive_chla.png}
   \end{subfigure}
   \begin{subfigure}{0.3\textwidth}
     \centering
@@ -281,31 +281,31 @@ When examining the performance of the models within a forecast horizon, addition
   \centering
   \begin{subfigure}{\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../plots/forecast_legend.png}
+    \includegraphics[width=\textwidth]{./plots/forecast_legend.png}
   \end{subfigure}
   \begin{subfigure}{0.49\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../plots/oxygen_theta.png}
+    \includegraphics[width=\textwidth]{./plots/oxygen_theta.png}
   \end{subfigure}
   \begin{subfigure}{0.49\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../plots/chla_theta.png}
+    \includegraphics[width=\textwidth]{./plots/chla_theta.png}
   \end{subfigure}
   \begin{subfigure}{0.49\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../plots/oxygen_tft.png}
+    \includegraphics[width=\textwidth]{./plots/oxygen_tft.png}
   \end{subfigure}
   \begin{subfigure}{0.49\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../plots/chla_tft.png}
+    \includegraphics[width=\textwidth]{./plots/chla_tft.png}
   \end{subfigure}
   \begin{subfigure}{0.49\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../plots/oxygen_ensemble.png}
+    \includegraphics[width=\textwidth]{./plots/oxygen_ensemble.png}
   \end{subfigure}
   \begin{subfigure}{0.49\textwidth}
     \centering
-    \includegraphics[width=\textwidth]{../plots/chla_ensemble.png}
+    \includegraphics[width=\textwidth]{./plots/chla_ensemble.png}
   \end{subfigure}
   \caption{Individual forecasts of dissolved oxygen and chlorophyll-a. The AutoTheta model produces accurate forecasts most of the year, especially for dissolved oxygen; but, there are some intervals where AutoTheta produces extremely inaccurate forecasts. After peaks in dissolved oxygen and chlorophyll-a, the AutoTheta model wrongly predicts that the values will continue to increase. Conversely, the neural network-based forecasts from the TFT and the Naive Ensemble model have learned from the training data that high levels of dissolved oxygen in the winter are followed by a steady decline throughout the spring. With chlorophyll-a, the neural networks take a conservative strategy where they predict that chlorophyll-a will remain in a non-bloom state, and these models never take a risk in forecasting that a bloom will occur.}
 \end{figure}
